@@ -76,7 +76,7 @@ fun MyFoodsScreen() {
     val data = LocalData.current
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
-    val ctx = LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalResources.current
     val foods = remember(data.customFoods) { data.customFoods.filter { it.facts != null }.sortedBy { it.name.lowercase() } }
     val undo = stringResource(R.string.f_undo)
 

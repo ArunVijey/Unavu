@@ -77,7 +77,7 @@ fun MealsScreen() {
     val data = LocalData.current
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
-    val ctx = LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalResources.current
     var tab by rememberSaveable { mutableStateOf(0) }
     var filterName by rememberSaveable { mutableStateOf<String?>(null) }
     val filter = filterName?.let { n -> Meal.entries.firstOrNull { it.name == n } }

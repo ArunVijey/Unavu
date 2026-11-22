@@ -71,7 +71,7 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
     val meal = mealName?.let { nm -> app.unavu.data.Meal.entries.firstOrNull { it.name == nm } }
     val feedback = app.unavu.ui.LocalFeedback.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalResources.current
     var customise by rememberSaveable { mutableStateOf(false) }
     val n = food.nutrFor(qty, unit, choices)
     val t = data.targets()

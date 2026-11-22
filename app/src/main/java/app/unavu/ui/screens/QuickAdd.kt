@@ -97,7 +97,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val date = nav.date.value
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
-    val ctx = LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalResources.current
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var modeName by rememberSaveable { mutableStateOf(request.mode) }
     val mode = runCatching { Mode.valueOf(modeName) }.getOrDefault(Mode.FOOD)

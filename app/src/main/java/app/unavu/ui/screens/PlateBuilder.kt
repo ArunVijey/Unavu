@@ -137,7 +137,7 @@ fun PlateBuilderScreen(page: Page.Plate) {
     val meal = mealName?.let { nm -> Meal.entries.firstOrNull { it.name == nm } }
     val feedback = app.unavu.ui.LocalFeedback.current
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalResources.current
     var cheat by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var editing by rememberSaveable { mutableStateOf<Int?>(null) }

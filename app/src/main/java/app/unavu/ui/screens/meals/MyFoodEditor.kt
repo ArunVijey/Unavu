@@ -95,7 +95,7 @@ fun MyFoodEditorScreen(page: Page.MyFood) {
     var iron by rememberSaveable { mutableStateOf(s(f0?.iron)) }
     var more by rememberSaveable { mutableStateOf(f0 != null && (f0.sugar + f0.satFat + f0.sodium + f0.calcium + f0.iron) > 0) }
 
-    val ctx = androidx.compose.ui.platform.LocalContext.current
+    val ctx = androidx.compose.ui.platform.LocalResources.current
     val mu = if (liquid) "ml" else "g"
     val grams = unitG.toDoubleOrNull()
     // label values per 100 g need a serving weight to convert

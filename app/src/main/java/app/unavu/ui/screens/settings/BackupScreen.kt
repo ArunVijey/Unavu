@@ -62,6 +62,7 @@ fun BackupScreen() {
     val data = LocalData.current
     val store = nav.store
     val context = LocalContext.current
+    val res = androidx.compose.ui.platform.LocalResources.current
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
@@ -174,9 +175,9 @@ fun BackupScreen() {
                 r.fold(
                     { n ->
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        feedback?.show(context.getString(R.string.i_restored, n), undo) { store.restoreSnapshot(before) }
+                        feedback?.show(res.getString(R.string.i_restored, n), undo) { store.restoreSnapshot(before) }
                     },
-                    { feedback?.show(context.getString(R.string.i_restore_failed, it.message ?: unknown)) },
+                    { feedback?.show(res.getString(R.string.i_restore_failed, it.message ?: unknown)) },
                 )
             }
         }

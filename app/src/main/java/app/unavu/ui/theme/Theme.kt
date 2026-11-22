@@ -71,15 +71,20 @@ fun contrast(a: Color, b: Color): Float {
 private val InkDark = Color(0xFF111111)
 
 /** Fill in the accent tokens from one picked colour, keeping text readable on both themes (>= 4.5:1). */
-fun AppColors.withAccent(a: Color): AppColors {
+fun AppColors.withAccent(picked: Color): AppColors {
     // text on the accent: whichever of near-black / white has the better real contrast
-    val onAcc = if (contrast(a, InkDark) >= contrast(a, Color.White)) InkDark else Color.White
+    val onAcc = if (contrast(picked, InkDark) >= contrast(picked, Color.White)) InkDark else Color.White
+    // mid-tone accents (e.g. violet) can't reach 4.5:1 with either; nudge the fill away from the text colour until they do
+    var a = picked
+    var f = 0f
+    val away = if (onAcc == Color.White) Color.Black else Color.White
+    while (f < 0.5f && contrast(a, onAcc) < 4.5f) { f += 0.02f; a = lerp(picked, away, f) }
     val accS = lerp(sf, a, if (dark) 0.22f else 0.16f)
     // accent-coloured text: push towards white (dark) or black (light) until it passes on bg, sf and accS
     val target = if (dark) Color.White else Color.Black
     var ink = a
     var t = 0f
-    while (t < 1f && (contrast(ink, bg) < 4.5f || contrast(ink, sf) < 4.5f || contrast(ink, accS) < 4.5f)) {
+    while (t < 1f && (contrast(ink, bg) < 4.5f || contrast(ink, sf) < 4.5f || contrast(ink, sf2) < 4.5f || contrast(ink, accS) < 4.5f)) {
         t += 0.04f
         ink = lerp(a, target, t.coerceAtMost(1f))
     }
