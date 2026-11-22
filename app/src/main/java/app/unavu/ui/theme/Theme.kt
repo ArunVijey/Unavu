@@ -211,13 +211,17 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
         val navArgb = c.sf.toArgb()
         DisposableEffect(dark, navArgb) {
             val activity = view.context as? androidx.activity.ComponentActivity
-            activity?.enableEdgeToEdge(
+            // the splash-screen library re-applies the XML bar style when it exits, so apply ours again after that
+            val apply = { activity?.enableEdgeToEdge(
                 statusBarStyle = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
                 else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
                 navigationBarStyle = if (dark) SystemBarStyle.dark(navArgb)
                 else SystemBarStyle.light(navArgb, navArgb),
-            )
-            onDispose { }
+            ) }
+            apply()
+            val again = Runnable { apply() }
+            view.postDelayed(again, 800)
+            onDispose { view.removeCallbacks(again) }
         }
     }
 

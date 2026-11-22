@@ -2,6 +2,8 @@
     <style name="Theme.Unavu" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/splash_bg</item>
         <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
     </style>
 
     <!-- Launch theme: system splash (API 31+ native, older via the compat library), swapped for Theme.Unavu by installSplashScreen() -->
