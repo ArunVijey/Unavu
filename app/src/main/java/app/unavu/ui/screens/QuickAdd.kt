@@ -269,8 +269,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
 
                     if (needsMeal) {
                         SectionLabel(stringResource(R.string.f_which_meal))
-                        MealPicker(meal) { mealName = it.name }
-                        Row(Modifier.padding(top = 8.dp)) { ChoiceChip(stringResource(R.string.f_cheat_meal), cheat) { cheat = !cheat } }
+                        MealPicker(meal, cheatLabel = stringResource(R.string.f_cheat_meal), cheat = cheat, onCheat = { cheat = !cheat }) { mealName = it.name }
                     }
                     Spacer(Modifier.height(12.dp))
                     val count = all.size + if (waterMl > 0) 1 else 0
