@@ -15,6 +15,34 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import app.unavu.R
+import app.unavu.ui.theme.motionTween
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -57,11 +85,12 @@ fun AppCard(
     Column(
         modifier
             .fillMaxWidth()
+            .then(if (onClick != null) Modifier.pressScale() else Modifier)
             .then(if (sk) Modifier.edge(U.c.ink.copy(alpha = 0.75f), radius, 1.6.dp, seed = radius.value.toInt()) else Modifier)
             .clip(shape)
             .background(color)
             .then(if (border != null && !sk) Modifier.border(1.dp, border, shape) else Modifier)
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+            .then(if (onClick != null) Modifier.semantics(mergeDescendants = true) {}.clickable(role = Role.Button, onClick = onClick) else Modifier)
             .padding(padding),
         content = content,
     )
@@ -71,14 +100,14 @@ fun AppCard(
 fun SectionLabel(text: String, modifier: Modifier = Modifier) {
     Text(
         text.uppercase(),
-        modifier = modifier.padding(start = 2.dp, top = 16.dp, bottom = 8.dp),
-        fontSize = 11.5.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = U.c.ink2,
+        modifier = modifier.padding(start = 2.dp, top = 16.dp, bottom = 8.dp).semantics { heading() },
+        style = U.t.caption, fontWeight = FontWeight.Bold, letterSpacing = 0.6.sp, color = U.c.ink2,
     )
 }
 
 @Composable
-fun TamilText(text: String, modifier: Modifier = Modifier, size: Float = 11f, color: Color = U.c.ink2) {
-    Text(text, modifier = modifier, fontFamily = TamilFamily, fontSize = size.sp, color = color, fontWeight = FontWeight.Medium)
+fun TamilText(text: String, modifier: Modifier = Modifier, size: Float = 12f, color: Color = U.c.ink2) {
+    Text(text, modifier = modifier, fontFamily = TamilFamily, fontSize = size.coerceAtLeast(12f).sp, color = color, fontWeight = FontWeight.Medium)
 }
 
 @Composable
@@ -86,14 +115,18 @@ fun Pill(text: String, selected: Boolean, modifier: Modifier = Modifier, onClick
     val c = U.c
     val shape = RoundedCornerShape(50)
     Box(
-        modifier
-            .clip(shape)
-            .background(if (selected) c.accS else c.sf)
-            .edge(if (selected) c.acc else c.line, 50.dp, 1.5.dp)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
+        modifier.heightIn(min = 48.dp).pressScale().selectable(selected = selected, role = Role.RadioButton, onClick = onClick),
+        contentAlignment = Alignment.Center,
     ) {
-        Text(text, fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (selected) c.accInk else c.ink)
+        Box(
+            Modifier
+                .clip(shape)
+                .background(if (selected) c.accS else c.sf)
+                .edge(if (selected) c.acc else c.line, 50.dp, 1.5.dp)
+                .padding(horizontal = 14.dp, vertical = 9.dp),
+        ) {
+            Text(text, style = U.t.label, color = if (selected) c.accInk else c.ink)
+        }
     }
 }
 
@@ -101,7 +134,7 @@ fun Pill(text: String, selected: Boolean, modifier: Modifier = Modifier, onClick
 fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     val c = U.c
     Row(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.sf2).padding(3.dp),
+        modifier.fillMaxWidth().selectableGroup().clip(RoundedCornerShape(12.dp)).background(c.sf2).padding(3.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         options.forEachIndexed { i, label ->
@@ -109,13 +142,14 @@ fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifie
             Box(
                 Modifier
                     .weight(1f)
+                    .heightIn(min = 48.dp)
                     .clip(RoundedCornerShape(9.dp))
                     .background(if (on) c.sf else Color.Transparent)
-                    .clickable { onSelect(i) }
-                    .padding(vertical = 8.dp),
+                    .selectable(selected = on, role = Role.Tab) { onSelect(i) }
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(label, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.ink else c.ink2)
+                Text(label, style = U.t.label, color = if (on) c.ink else c.ink2, textAlign = TextAlign.Center)
             }
         }
     }
@@ -134,13 +168,15 @@ fun PrimaryButton(
         modifier
             .fillMaxWidth()
             .then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.8f), 16.dp, 1.6.dp, seed = 5) else Modifier)
+            .then(if (enabled) Modifier.pressScale() else Modifier)
             .clip(RoundedCornerShape(16.dp))
             .background(if (enabled) color else color.copy(alpha = 0.4f))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(vertical = 16.dp),
+            .heightIn(min = 48.dp)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .padding(vertical = 14.dp, horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = textColor, fontWeight = FontWeight.Bold, fontSize = 15.sp, textAlign = TextAlign.Center)
+        Text(text, color = textColor, style = U.t.body, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
     }
 }
 
@@ -175,20 +211,39 @@ fun ArrowIcon(dir: Arrow, color: Color = U.c.ink, size: Dp = 20.dp) {
 
 @Composable
 fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, contentDescription: String? = null, onClick: () -> Unit) {
+    val desc = contentDescription ?: stringResource(
+        when (dir) {
+            Arrow.BACK -> R.string.d_back
+            Arrow.LEFT -> R.string.d_previous
+            Arrow.RIGHT -> R.string.d_next
+            Arrow.CLOSE -> R.string.d_close
+        },
+    )
     Box(
-        modifier.size(40.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = dir.ordinal) else Modifier)
-            .clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
+        modifier.size(48.dp).pressScale().clip(CircleShape).clickable(role = Role.Button, onClick = onClick).semantics { this.contentDescription = desc },
         contentAlignment = Alignment.Center,
-    ) { ArrowIcon(dir) }
+    ) {
+        Box(
+            Modifier.size(40.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = dir.ordinal) else Modifier)
+                .clip(CircleShape).background(U.c.sf2),
+            contentAlignment = Alignment.Center,
+        ) { ArrowIcon(dir) }
+    }
 }
 
 @Composable
 fun IconCircle(text: String, modifier: Modifier = Modifier, contentDescription: String? = null, onClick: () -> Unit) {
     Box(
-        modifier.size(36.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 18.dp, 1.4.dp, seed = text.length) else Modifier)
-            .clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
+        modifier.size(48.dp).pressScale().clip(CircleShape).clickable(role = Role.Button, onClick = onClick)
+            .semantics(mergeDescendants = true) { if (contentDescription != null) this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
-    ) { EmojiText(text, 16) }
+    ) {
+        Box(
+            Modifier.size(40.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = text.length) else Modifier)
+                .clip(CircleShape).background(U.c.sf2),
+            contentAlignment = Alignment.Center,
+        ) { EmojiText(text, 16) }
+    }
 }
 
 /**
@@ -212,12 +267,12 @@ fun EmojiText(e: String, size: Int = 20, modifier: Modifier = Modifier) {
 @Composable
 fun TopBar(title: String, onBack: (() -> Unit)? = null, action: (@Composable () -> Unit)? = null) {
     Row(
-        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 14.dp, bottom = 14.dp),
+        Modifier.fillMaxWidth().padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         if (onBack != null) ArrowButton(Arrow.BACK, onClick = onBack)
-        Text(title, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
+        Text(title, style = U.t.headline, modifier = Modifier.weight(1f).semantics { heading() })
         action?.invoke()
     }
 }
@@ -230,32 +285,62 @@ fun StatusBadge(text: String, status: Status, modifier: Modifier = Modifier) {
     val (bg, fg) = when (status) {
         Status.OK -> c.leafS to c.leafInk
         Status.LOW -> c.turS to c.turInk
-        Status.OVER -> c.chiS to c.chi
-        Status.INFO -> c.blueS to c.blue
+        Status.OVER -> c.chiS to c.chiInk
+        Status.INFO -> c.blueS to c.blueInk
     }
     Text(
         text, modifier = modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 9.dp, vertical = 4.dp),
-        color = fg, fontSize = 11.sp, fontWeight = FontWeight.Bold,
+        color = fg, style = U.t.caption, fontWeight = FontWeight.Bold,
     )
 }
 
 @Composable
-fun Track(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 7.dp) {
-    Box(modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(height)).background(U.c.sf2)) {
-        Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(height)).background(color))
+fun Track(fraction: Float, color: Color, modifier: Modifier = Modifier, height: Dp = 7.dp, contentDescription: String? = null) {
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val f by animateFloatAsState(if (shown) fraction.coerceIn(0f, 1f) else 0f, motionTween(), label = "track")
+    val sem = if (contentDescription != null) Modifier.semantics {
+        this.contentDescription = contentDescription
+        progressBarRangeInfo = ProgressBarRangeInfo(fraction.coerceIn(0f, 1f), 0f..1f)
+    } else Modifier
+    Box(modifier.then(sem).fillMaxWidth().height(height).clip(RoundedCornerShape(height)).background(U.c.sf2)) {
+        Box(Modifier.fillMaxWidth(f).fillMaxHeight().clip(RoundedCornerShape(height)).background(color))
     }
 }
 
 @Composable
-fun AppSwitch(checked: Boolean, onChange: (Boolean) -> Unit) {
+fun AppSwitch(checked: Boolean, onChange: ((Boolean) -> Unit)?) {
     val c = U.c
+    val haptic = LocalHapticFeedback.current
     Switch(
-        checked = checked, onCheckedChange = onChange,
+        checked = checked,
+        onCheckedChange = onChange?.let { cb -> { v: Boolean -> haptic.performHapticFeedback(if (v) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff); cb(v) } },
         colors = SwitchDefaults.colors(
             checkedTrackColor = c.acc, checkedThumbColor = c.onAcc,
             uncheckedTrackColor = c.sf2, uncheckedThumbColor = c.ink2, uncheckedBorderColor = c.line,
         ),
     )
+}
+
+/** A whole row that toggles (Role.Switch, merged semantics, 56dp min). */
+@Composable
+fun SwitchRow(title: String, checked: Boolean, modifier: Modifier = Modifier, subtitle: String? = null, onChange: (Boolean) -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .toggleable(value = checked, role = Role.Switch) { v ->
+                haptic.performHapticFeedback(if (v) HapticFeedbackType.ToggleOn else HapticFeedbackType.ToggleOff); onChange(v)
+            }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, style = U.t.body, fontWeight = FontWeight.Bold)
+            if (subtitle != null) Text(subtitle, style = U.t.bodyS, color = U.c.ink2)
+        }
+        AppSwitch(checked, null)
+    }
 }
 
 @Composable
@@ -270,17 +355,18 @@ fun ListRow(
     Row(
         Modifier
             .fillMaxWidth()
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .padding(vertical = 14.dp),
+            .heightIn(min = 48.dp)
+            .then(if (onClick != null) Modifier.semantics(mergeDescendants = true) {}.clickable(role = Role.Button, onClick = onClick) else Modifier)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         if (leading != null) Box(Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(U.c.sf2), contentAlignment = Alignment.Center) { EmojiText(leading, 17) }
         Column(Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, fontSize = 14.5.sp)
-            if (subtitle != null) Text(subtitle, fontSize = 12.5.sp, color = U.c.ink2)
+            Text(title, style = U.t.body, fontWeight = FontWeight.Bold)
+            if (subtitle != null) Text(subtitle, style = U.t.caption.copy(fontSize = 13.sp), color = U.c.ink2)
         }
-        if (end != null) end() else if (trailing != null) Text(trailing, color = U.c.ink2)
+        if (end != null) end() else if (trailing != null) Text(trailing, style = U.t.body, color = U.c.ink2, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 
@@ -295,14 +381,17 @@ fun Divider() {
 @Composable
 fun Fab(modifier: Modifier = Modifier, size: Dp = 62.dp, contentDescription: String? = null, onClick: () -> Unit) {
     val c = U.c
+    val desc = contentDescription ?: stringResource(R.string.d_add_food)
     Box(
         modifier
             .size(size)
+            .pressScale()
             .shadow(14.dp, CircleShape, ambientColor = c.acc, spotColor = c.acc)
             .then(if (U.sketch) Modifier.edge(c.onAcc, size / 2, 1.8.dp, seed = 9) else Modifier)
             .clip(CircleShape)
             .background(c.acc)
-            .clickable(onClick = onClick),
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { this.contentDescription = desc },
         contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.size(size * 0.36f)) {
@@ -366,5 +455,21 @@ fun NavIcon(g: NavGlyph, color: Color, active: Boolean, bg: Color, size: Dp = 26
     }
 }
 
-/** Slight shrink while pressed. Round-1 skeleton (owner: Agent D implements; no-op for now). */
-fun Modifier.pressScale(): Modifier = this
+/** Slight shrink (0.97) while pressed. Does not consume the touch; off when reduced motion is on. */
+fun Modifier.pressScale(): Modifier = composed {
+    var pressed by remember { mutableStateOf(false) }
+    val reduced = app.unavu.ui.theme.LocalReducedMotion.current
+    val scale by animateFloatAsState(if (pressed && !reduced) 0.97f else 1f, motionTween(app.unavu.ui.theme.Motion.SHORT), label = "press")
+    this
+        .pointerInput(Unit) {
+            awaitEachGesture {
+                awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                pressed = true
+                do {
+                    val ev = awaitPointerEvent(PointerEventPass.Initial)
+                } while (ev.changes.any { it.pressed })
+                pressed = false
+            }
+        }
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+}

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="d_back">Back</string>
+    <string name="d_previous">Previous</string>
+    <string name="d_next">Next</string>
+    <string name="d_close">Close</string>
+    <string name="d_add_food">Add food</string>
+    <string name="d_cancel">Cancel</string>
+    <string name="d_save">Save</string>
+    <string name="d_pick_time">Pick a time</string>
+    <string name="d_decrease">Decrease</string>
+    <string name="d_increase">Increase</string>
+    <string name="d_clear_search">Clear search</string>
+    <string name="d_bar_chart">Bar chart. %1$s</string>
+    <string name="d_line_chart">Line chart with %1$d points</string>
+</resources>
