@@ -88,4 +88,20 @@
         <item quantity="other">%d ingredients</item>
     </plurals>
     <string name="f_kcal_plain">%1$d kcal</string>
+    <!-- My foods -->
+    <string name="f_myfoods_title">My foods</string>
+    <string name="f_ate_new">Ate something new?</string>
+    <string name="f_ate_new_body">Add it once with its calories (from the pack, the menu, or a guess). It then shows up in search, the plate builder and typing, like any other food.</string>
+    <string name="f_add_new_food">＋ Add a new food</string>
+    <string name="f_no_foods_yet">No foods added yet</string>
+    <string name="f_your_foods">Your foods · %1$d</string>
+    <string name="f_cooked_home">Cooked at home?</string>
+    <string name="f_build_recipe_title">Build a recipe from ingredients</string>
+    <string name="f_build_recipe_body">For home dishes, add the ingredients and the app works out every nutrient. Find your recipes under Meals › My recipes.</string>
+    <string name="f_food_deleted">Deleted %1$s</string>
+    <string name="f_food_meta">1 %1$s (%2$s %3$s) · P %4$s · C %5$s · F %6$s</string>
+    <string name="f_icon_n">Icon %1$s</string>
+    <string name="f_why_name">Enter a name to save</string>
+    <string name="f_why_kcal">Enter the calories to save</string>
+    <string name="f_why_serving">Enter the serving weight to convert label values</string>
 </resources>
