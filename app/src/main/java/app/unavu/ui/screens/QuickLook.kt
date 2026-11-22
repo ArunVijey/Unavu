@@ -5,6 +5,7 @@ import android.os.Build
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
@@ -41,6 +42,17 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import app.unavu.R
+import app.unavu.ui.pressScale
+import app.unavu.ui.theme.LocalReducedMotion
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
@@ -71,10 +83,11 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
         LaunchedEffect(Unit) { haptics.performHapticFeedback(HapticFeedbackType.LongPress); shown = true }
         val c = U.c
         Box(
-            Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+            Modifier.fillMaxSize().clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClickLabel = stringResource(R.string.d_close), onClick = onDismiss),
             contentAlignment = Alignment.Center,
         ) {
-            AnimatedVisibility(shown, enter = scaleIn(spring(dampingRatio = 0.62f, stiffness = 420f), initialScale = 0.86f) + fadeIn()) {
+            val reduced = LocalReducedMotion.current
+            AnimatedVisibility(shown, enter = if (reduced) fadeIn(snap()) else scaleIn(spring(dampingRatio = 0.62f, stiffness = 420f), initialScale = 0.86f) + fadeIn()) {
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 40.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -102,11 +115,13 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
                             actions.forEachIndexed { i, a ->
                                 if (i > 0) Divider()
                                 Row(
-                                    Modifier.fillMaxWidth().clickable { a.onClick(); onDismiss() }.padding(horizontal = 14.dp, vertical = 12.dp),
+                                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button) { a.onClick(); onDismiss() }
+                                        .padding(horizontal = 14.dp, vertical = 12.dp),
                                     horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Text(a.label, fontSize = 14.sp, color = if (a.destructive) c.chi else c.ink)
-                                    EmojiText(a.icon, 15)
+                                    Text(a.label, style = U.t.bodyS, color = if (a.destructive) c.chiInk else c.ink, modifier = Modifier.weight(1f))
+                                    Box(Modifier.clearAndSetSemantics {}) { EmojiText(a.icon, 15) }
                                 }
                             }
                         }
@@ -120,8 +135,17 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
 @Composable
 fun SourceRow(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color = U.c.ink, onRemove: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(label, fontSize = 12.5.sp, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, color = valueColor)
-        if (onRemove != null) Text("✕", fontSize = 12.sp, color = U.c.ink2, modifier = Modifier.clip(RoundedCornerShape(50)).clickable(onClick = onRemove).padding(4.dp))
+        Text(label, style = U.t.bodyS, modifier = Modifier.weight(1f))
+        Text(value, style = U.t.bodyS, fontWeight = FontWeight.Bold, color = valueColor)
+        if (onRemove != null) RemoveButton(onRemove)
     }
+}
+
+@Composable
+fun RemoveButton(onClick: () -> Unit) {
+    val desc = stringResource(R.string.d_remove)
+    Box(
+        Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
+        contentAlignment = Alignment.Center,
+    ) { Text("✕", style = U.t.label, color = U.c.ink2) }
 }
