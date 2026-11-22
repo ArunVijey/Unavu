@@ -83,7 +83,7 @@ fun SmartTargetScreen() {
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "now", contentType = "card") {
                 val sub = if (s.manualKcal != null && s.mode != SmartMode.AUTO) stringResource(R.string.g_smart_set_by_you) else stringResource(R.string.g_smart_burn, t.maintenance, t.burnSource)
-                val onLeaf = if (c.leaf.luminance() > 0.4f) androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.87f) else androidx.compose.ui.graphics.Color.White
+                val onLeaf = if (c.leaf.luminance() > 0.4f) ON_LEAF_DARK else ON_LEAF_LIGHT
                 val kcalShown by countUp(t.kcal.toFloat())
                 AppCard(color = c.leaf, border = null, modifier = Modifier.semantics(mergeDescendants = true) {}) {
                     Text(stringResource(R.string.g_smart_now), color = onLeaf.copy(alpha = 0.85f), style = U.t.label)
@@ -209,3 +209,7 @@ private fun Need(label: String, have: Int, need: Int) {
         Track(have / need.toFloat(), if (have >= need) c.leaf else c.tur)
     }
 }
+
+// Fixed text inks for the leaf-coloured hero card (picked by leaf luminance, theme-independent).
+private val ON_LEAF_DARK = androidx.compose.ui.graphics.Color(0xDE000000)
+private val ON_LEAF_LIGHT = androidx.compose.ui.graphics.Color(0xFFFFFFFF)

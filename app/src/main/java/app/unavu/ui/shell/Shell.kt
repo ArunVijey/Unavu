@@ -78,11 +78,26 @@ fun OnboardingHost(store: Store, vm: AppViewModel) {
     val step by vm.onboardStep.collectAsStateWithLifecycle()
     val profile by vm.draftProfile.collectAsStateWithLifecycle()
     Box(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding()) {
-        if (step == 0) {
-            AboutYouScreen(profile) { vm.setDraftProfile(it); vm.setOnboardStep(1) }
-        } else {
-            BackHandler { vm.setOnboardStep(0) }
-            TargetsScreen(profile, onBack = { vm.setOnboardStep(0) }) { store.update { it.copy(profile = profile) } }
+        val reduced = app.unavu.ui.theme.LocalReducedMotion.current
+        val slide = with(androidx.compose.ui.platform.LocalDensity.current) { 36.dp.roundToPx() }
+        AnimatedContent(
+            targetState = step,
+            transitionSpec = {
+                val dir = if (targetState > initialState) 1 else -1
+                if (reduced) androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                else (fadeIn(tween(app.unavu.ui.theme.Motion.LONG, easing = app.unavu.ui.theme.Motion.EmphasizedDecelerate)) +
+                    slideInHorizontally(tween(app.unavu.ui.theme.Motion.LONG, easing = app.unavu.ui.theme.Motion.EmphasizedDecelerate)) { dir * slide }) togetherWith
+                    (fadeOut(tween(app.unavu.ui.theme.Motion.SHORT, easing = app.unavu.ui.theme.Motion.EmphasizedAccelerate)) +
+                        slideOutHorizontally(tween(app.unavu.ui.theme.Motion.SHORT, easing = app.unavu.ui.theme.Motion.EmphasizedAccelerate)) { -dir * slide })
+            },
+            label = "onboardStep",
+        ) { s ->
+            if (s == 0) {
+                AboutYouScreen(profile) { vm.setDraftProfile(it); vm.setOnboardStep(1) }
+            } else {
+                BackHandler { vm.setOnboardStep(0) }
+                TargetsScreen(profile, onBack = { vm.setOnboardStep(0) }) { store.update { it.copy(profile = profile) } }
+            }
         }
     }
 }
