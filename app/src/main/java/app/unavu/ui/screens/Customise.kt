@@ -22,9 +22,15 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
+import app.unavu.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,14 +63,14 @@ import kotlin.math.roundToInt
 fun CustomiseSheet(
     food: Food,
     initial: NewItem,
-    saveLabel: String = "Done",
+    saveLabel: String? = null,
     onDismiss: () -> Unit,
     onRemove: (() -> Unit)? = null,
     onSave: (NewItem) -> Unit,
 ) {
     val c = U.c
-    var qty by remember { mutableStateOf(initial.qty) }
-    var unit by remember { mutableStateOf(initial.unit.takeIf { u -> food.units.any { it.name == u } } ?: food.units.first().name) }
+    var qty by rememberSaveable { mutableStateOf(initial.qty) }
+    var unit by rememberSaveable { mutableStateOf(initial.unit.takeIf { u -> food.units.any { it.name == u } } ?: food.units.first().name) }
     var choices by remember { mutableStateOf(food.resolve(initial.choices)) }
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val n = food.nutrFor(qty, unit, choices)
@@ -75,22 +81,22 @@ fun CustomiseSheet(
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).navigationBarsPadding().verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.Top) {
                 Column(Modifier.weight(1f)) {
-                    Text("${food.emoji} ${food.name}", fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text("${food.emoji} ${food.name}", style = U.t.title, fontWeight = FontWeight.Bold)
                     if (food.tamil.isNotBlank()) TamilText(food.tamil)
                     StatusBadge(food.source.label, Status.INFO, Modifier.padding(top = 4.dp))
                 }
                 Column(horizontalAlignment = Alignment.End) {
-                    Text("${n.kcal.roundToInt()}", fontSize = 26.sp, fontWeight = FontWeight.ExtraBold)
-                    Text("kcal", fontSize = 11.sp, color = c.ink2)
+                    Text("${n.kcal.roundToInt()}", style = U.t.headline, fontWeight = FontWeight.ExtraBold)
+                    Text("kcal", style = U.t.caption, color = c.ink2)
                 }
             }
             Text(
                 "P ${n.protein.roundToInt()} g · C ${n.carbs.roundToInt()} g · F ${n.fat.roundToInt()} g · Fibre ${"%.1f".format(n.fibre)} g",
-                fontSize = 12.sp, color = c.ink2, modifier = Modifier.padding(top = 6.dp),
+                style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 6.dp),
             )
 
             food.choices.forEach { g ->
-                SectionLabel(g.label + if (g.multi) " · pick any" else "")
+                SectionLabel(if (g.multi) stringResource(R.string.f_pick_any, g.label) else g.label)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     g.options.forEach { o ->
                         val picked = choices[g.id].orEmpty()
@@ -105,16 +111,16 @@ fun CustomiseSheet(
                 }
             }
             if (food.hasOil) {
-                SectionLabel("Oil / ghee")
+                SectionLabel(stringResource(R.string.f_oil_ghee))
                 val cur = choices[OIL]?.firstOrNull() ?: "usual"
                 Segmented(OIL_LEVELS.map { it.second }, OIL_LEVELS.indexOfFirst { it.first == cur }) { i -> choices = choices + (OIL to listOf(OIL_LEVELS[i].first)) }
             }
 
-            SectionLabel("How much")
+            SectionLabel(stringResource(R.string.f_how_much))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Stepper(qty, step, min = step) { qty = it }
                 Spacer(Modifier.weight(1f))
-                Text("≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}", fontSize = 12.sp, color = c.ink2)
+                Text("≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}", style = U.t.caption, color = c.ink2)
             }
             Spacer(Modifier.height(8.dp))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -130,10 +136,10 @@ fun CustomiseSheet(
                 }
             }
             Spacer(Modifier.height(16.dp))
-            PrimaryButton("$saveLabel · ${qtyText(qty, unit)}") { onSave(NewItem(food.id, qty, unit, choices)) }
+            PrimaryButton("${saveLabel ?: stringResource(R.string.f_done)} · ${qtyText(qty, unit)}") { onSave(NewItem(food.id, qty, unit, choices)) }
             if (onRemove != null) {
                 Spacer(Modifier.height(8.dp))
-                SecondaryButton("Remove") { onRemove() }
+                SecondaryButton(stringResource(R.string.f_remove)) { onRemove() }
             }
             Spacer(Modifier.height(20.dp))
         }
@@ -146,8 +152,8 @@ private fun qtyText(q: Double, unit: String) = "${app.unavu.data.fmtQty(q)} ${un
 fun ChoiceChip(text: String, on: Boolean, onClick: () -> Unit) {
     val c = U.c
     Text(
-        text, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.accInk else c.ink,
+        text, style = U.t.label, fontWeight = FontWeight.SemiBold, color = if (on) c.accInk else c.ink,
         modifier = Modifier.edge(if (on) c.acc else c.line, 50.dp, 1.5.dp, seed = text.length).clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf)
-            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
+            .selectable(selected = on, role = Role.Checkbox, onClick = onClick).heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 13.dp),
     )
 }
