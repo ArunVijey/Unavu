@@ -113,5 +113,5 @@ object Report {
             val f = File(dir, name); f.writeBytes(bytes)
             androidx.core.content.FileProvider.getUriForFile(context, context.packageName + ".files", f)
         }
-    }
+    }.fold({ Result.success(it) }, { Result.failure(IllegalStateException(Backup.readable(it), it)) })
 }

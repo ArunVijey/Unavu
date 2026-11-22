@@ -1,79 +1,134 @@
 package app.unavu.data
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import java.io.File
+import java.io.FileOutputStream
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.util.UUID
 
 /**
  * All app data lives in one JSON file in the app's private storage. It is small (even years of
- * logs are a few MB), written atomically (temp file + rename) after every change, and is the same
- * format the backup exports.
+ * logs are a few MB), written atomically (temp file, fsync, atomic move) after every change, and
+ * is the same format the backup exports.
+ *
+ * A file that exists but can't be read is never overwritten with empty data: it is copied to
+ * `unavu-data.corrupt-<time>.json`, the `.tmp` from an interrupted save is tried, and [loadIssue]
+ * tells the UI so the user can restore a backup.
  */
-class Store private constructor(private val file: File) {
+class Store internal constructor(private val file: File) {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val writeLock = Mutex()
+    private val scope = CoroutineScope(
+        SupervisorJob() + Dispatchers.IO + CoroutineExceptionHandler { _, t -> logError("Store writer crashed", t) },
+    )
+    private val saveLock = Any()
+    /** One conflated writer: bursts of updates collapse into a write of the newest snapshot. */
+    private val saveRequests = Channel<Unit>(Channel.CONFLATED)
+
+    private val _loadIssue = MutableStateFlow<LoadIssue?>(null)
+    /** Non-null when the data file was unreadable at start (a copy was kept). */
+    val loadIssue: StateFlow<LoadIssue?> = _loadIssue
 
     private val _data = MutableStateFlow(migrate(load()))
     val data: StateFlow<AppData> = _data
 
-    private var nextId = (_data.value.entries.maxOfOrNull { it.id } ?: 0L) + 1
+    @Volatile private var nextId = nextIdFor(_data.value)
 
     init {
         FoodDb.setCustom(_data.value.customFoods)
+        scope.launch { for (r in saveRequests) writeNow() }
     }
 
     fun newId(): Long = synchronized(this) { nextId++ }
 
     fun update(change: (AppData) -> AppData) {
         _data.update(change)
-        val snapshot = _data.value
-        FoodDb.setCustom(snapshot.customFoods)
-        scope.launch { writeLock.withLock { save(snapshot) } }
+        FoodDb.setCustom(_data.value.customFoods)
+        saveRequests.trySend(Unit)
     }
 
     /** Replace everything (restore from backup). */
     fun replaceAll(d: AppData) {
-        update { migrate(d) }
-        nextId = (d.entries.maxOfOrNull { it.id } ?: 0L) + 1
+        val m = migrate(d)
+        update { m }
+        synchronized(this) { nextId = nextIdFor(m) }
     }
 
-    // ---- round-1 skeleton APIs (owner: Agent A fills in the real behaviour) ----
-    private val _loadIssue = MutableStateFlow<LoadIssue?>(null)
-    /** Non-null when the data file was unreadable at start (a copy was kept). */
-    val loadIssue: StateFlow<LoadIssue?> = _loadIssue
     fun clearLoadIssue() { _loadIssue.value = null }
-    /** Undo: put back an earlier snapshot. */
-    fun restoreSnapshot(snapshot: AppData) = update { snapshot }
-    /** Write pending changes now (called from onStop). */
-    fun flush() { val snap = _data.value; scope.launch { writeLock.withLock { save(snap) } } }
+
+    /** Undo: put back an earlier snapshot (refreshes custom foods and the id counter). */
+    fun restoreSnapshot(snapshot: AppData) {
+        update { snapshot }
+        synchronized(this) { nextId = maxOf(nextId, nextIdFor(snapshot)) }
+    }
+
+    /** Write pending changes now, on the calling thread (called from onStop). */
+    fun flush() = writeNow()
 
     fun exportJson(): String = JSON.encodeToString(AppData.serializer(), _data.value)
 
-    private fun load(): AppData = runCatching {
-        if (file.exists()) JSON.decodeFromString(AppData.serializer(), file.readText()) else AppData()
-    }.getOrElse { AppData() }
+    private fun nextIdFor(d: AppData) = (d.entries.maxOfOrNull { it.id } ?: 0L) + 1
 
-    private fun save(d: AppData) {
-        val tmp = File(file.parentFile, file.name + ".tmp")
-        tmp.writeText(JSON.encodeToString(AppData.serializer(), d))
-        if (!tmp.renameTo(file)) {
-            file.delete(); tmp.renameTo(file)
+    private fun parse(f: File): AppData? =
+        runCatching { JSON.decodeFromString(AppData.serializer(), f.readText()) }.getOrNull()
+
+    private fun tmpFile() = File(file.parentFile, file.name + ".tmp")
+
+    private fun load(): AppData {
+        val tmp = tmpFile()
+        if (!file.exists()) {
+            // a crash between "write tmp" and "move" leaves only the tmp
+            return (if (tmp.exists()) parse(tmp) else null) ?: AppData()
+        }
+        parse(file)?.let { return it }
+        // unreadable: keep a copy before anything can overwrite it
+        val kept = File(file.parentFile, file.name.removeSuffix(".json") + ".corrupt-" + System.currentTimeMillis() + ".json")
+        runCatching { file.copyTo(kept, overwrite = true) }.onFailure { logError("Couldn't keep a copy of the unreadable data file", it) }
+        _loadIssue.value = LoadIssue(kept.absolutePath)
+        return parse(tmp) ?: AppData()
+    }
+
+    /** tmp file, fsync, atomic move. Errors are logged, never thrown. */
+    private fun writeNow() {
+        synchronized(saveLock) {
+            try {
+                val d = _data.value
+                val tmp = tmpFile()
+                FileOutputStream(tmp).use { out ->
+                    out.write(JSON.encodeToString(AppData.serializer(), d).toByteArray(Charsets.UTF_8))
+                    out.flush(); out.fd.sync()
+                }
+                try {
+                    Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.ATOMIC_MOVE, StandardCopyOption.REPLACE_EXISTING)
+                } catch (e: AtomicMoveNotSupportedException) {
+                    Files.move(tmp.toPath(), file.toPath(), StandardCopyOption.REPLACE_EXISTING)
+                }
+            } catch (t: Throwable) {
+                logError("Saving unavu-data.json failed", t)
+            }
         }
     }
 
     companion object {
         val JSON = Json { ignoreUnknownKeys = true; encodeDefaults = true; prettyPrint = false }
+
+        private fun logError(msg: String, t: Throwable) {
+            runCatching { android.util.Log.e("UnavuStore", msg, t) }
+        }
+
+        /** A store backed by any file (used by JVM tests). */
+        fun forFile(file: File): Store = Store(file)
 
         @Volatile private var instance: Store? = null
         /** The store if it's already loaded, without blocking. */
@@ -192,9 +247,15 @@ fun Store.saveCombo(c: Combo) = update { d ->
 
 fun Store.deleteCombo(id: String) = update { d -> d.copy(combos = d.combos.filterNot { it.id == id }) }
 
-fun Store.useCombo(c: Combo, meal: Meal, date: String) {
-    logItems(c.items.map { it.toNew() }, meal, date, cheat = false)
-    update { d -> d.copy(combos = d.combos.map { if (it.id == c.id) it.copy(uses = it.uses + 1) else it }) }
+fun Store.useCombo(c: Combo, meal: Meal, date: String) = update { d ->
+    val time = nowTime()
+    val items = c.items.map { it.toNew() }
+    val newEntries = items.map { LogEntry(newId(), date, meal, it.foodId, it.qty, it.unit, time, false, it.choices) }
+    d.copy(
+        entries = d.entries + newEntries,
+        portions = d.portions + items.associate { it.foodId to Portion(it.qty, it.unit, it.choices) },
+        combos = d.combos.map { if (it.id == c.id) it.copy(uses = it.uses + 1) else it },
+    )
 }
 
 fun Store.saveCustomFood(f: CustomFood) = update { d ->

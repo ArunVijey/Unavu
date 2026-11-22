@@ -30,7 +30,7 @@ object Smart {
 
     /** Days with at least two meals logged are "well logged" (one coffee isn't a full day). */
     fun loggedDays(d: AppData, from: LocalDate, to: LocalDate): List<String> =
-        d.entries.filter { it.date >= from.toString() && it.date <= to.toString() }
+        d.entriesBetween(from.toString(), to.toString())
             .groupBy { it.date }
             .filter { (_, es) -> es.map { it.meal }.distinct().size >= 2 }
             .keys.sorted()

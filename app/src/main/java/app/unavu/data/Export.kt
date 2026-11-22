@@ -40,18 +40,34 @@ object Backup {
         }
         val now = System.currentTimeMillis()
         store.update { x ->
-            x.copy(backup = x.backup.copy(lastAt = now, lastOk = result.isSuccess, lastMessage = result.fold({ it }, { it.message ?: "Backup failed" })))
+            x.copy(backup = x.backup.copy(lastAt = now, lastOk = result.isSuccess, lastMessage = result.fold({ it }, { readable(it) })))
         }
-        return result
+        return result.fold({ Result.success(it) }, { Result.failure(IllegalStateException(readable(it), it)) })
     }
 
-    fun restore(context: Context, uri: Uri): Result<Int> = runCatching {
-        val text = context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) } ?: error("Couldn't read the file")
-        val d = Store.JSON.decodeFromString(AppData.serializer(), text)
+    /** Reads and validates a backup file. Nothing is replaced unless the whole file parses. */
+    fun restore(context: Context, uri: Uri): Result<Int> = try {
+        val text = context.contentResolver.openInputStream(uri)?.use { it.readBytes().toString(Charsets.UTF_8) }
+            ?: error("Couldn't open the file you picked.")
+        val d = try {
+            Store.JSON.decodeFromString(AppData.serializer(), text)
+        } catch (e: Exception) {
+            error("That file isn't an Unavu backup, so nothing was changed.")
+        }
+        if (d.version > AppData().version) error("This backup comes from a newer version of Unavu. Update the app first.")
         val store = Store.get(context)
         val keepBackup = store.data.value.backup
         store.replaceAll(d.copy(backup = keepBackup))
-        d.entries.size
+        Result.success(d.entries.size)
+    } catch (e: Exception) {
+        Result.failure(IllegalStateException(readable(e), e))
+    }
+
+    internal fun readable(e: Throwable): String = when (e) {
+        is SecurityException -> "Unavu no longer has access to that folder. Pick it again in Settings › Backup."
+        is java.io.FileNotFoundException -> "The file or folder isn't there any more."
+        is java.io.IOException -> "Couldn't read or write the file (${e.message ?: "storage error"})."
+        else -> e.message ?: "Something went wrong."
     }
 
     private fun csv(vararg cells: Any?): String = cells.joinToString(",") { c ->
