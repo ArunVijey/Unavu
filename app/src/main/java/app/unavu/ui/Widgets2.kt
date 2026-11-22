@@ -242,7 +242,8 @@ fun BarChart(
     val stagger = 30
     val totalMs = long + stagger * (values.size - 1).coerceAtLeast(0)
     val prog = remember { Animatable(if (reduced) 1f else 0f) }
-    LaunchedEffect(Unit) { if (!reduced) prog.animateTo(1f, androidx.compose.animation.core.tween(totalMs, easing = androidx.compose.animation.core.LinearEasing)) }
+    val progSpec = app.unavu.ui.theme.motionTween<Float>(totalMs, androidx.compose.animation.core.LinearEasing)
+    LaunchedEffect(Unit) { if (!reduced) prog.animateTo(1f, progSpec) }
     var sel by remember { mutableStateOf(-1) }
     val chipA by animateFloatAsState(if (sel >= 0) 1f else 0f, motionTween(app.unavu.ui.theme.Motion.SHORT), label = "barChip")
     var shownSel by remember { mutableStateOf(0) }

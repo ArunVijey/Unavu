@@ -214,13 +214,13 @@ fun PrimaryButton(
             .then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.8f), 16.dp, 1.6.dp, seed = 5) else Modifier)
             .then(if (enabled) Modifier.pressScale() else Modifier)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (enabled) color else color.copy(alpha = 0.4f))
+            .background(if (enabled) color else U.c.sf2)
             .heightIn(min = 48.dp)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(vertical = 14.dp, horizontal = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = textColor, style = U.t.body, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(text, color = if (enabled) textColor else U.c.ink2, style = U.t.body, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
     }
 }
 

@@ -2,6 +2,8 @@ package app.unavu.ui.screens
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -186,8 +188,20 @@ fun MealsScreen() {
                 }
             }
         }
-        Fab(Modifier.align(Alignment.BottomEnd).padding(16.dp)) {
-            if (tab == 0) nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) else nav.push(Page.Recipe(null))
+        if (if (tab == 0) combos.isNotEmpty() else recipes.isNotEmpty()) {
+            val pillShape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+            Text(
+                stringResource(if (tab == 0) R.string.f_build_combo else R.string.f_build_recipe),
+                style = U.t.label, fontWeight = FontWeight.Bold, color = U.c.ink,
+                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                    .clip(pillShape)
+                    .background(U.c.sf2)
+                    .border(1.dp, U.c.line, pillShape)
+                    .clickable(role = Role.Button) {
+                        if (tab == 0) nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) else nav.push(Page.Recipe(null))
+                    }
+                    .padding(horizontal = 18.dp, vertical = 13.dp),
+            )
         }
     }
 

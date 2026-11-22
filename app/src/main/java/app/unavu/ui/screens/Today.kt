@@ -13,6 +13,8 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.foundation.border
 import androidx.compose.ui.composed
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -245,7 +247,12 @@ fun TodayScreen() {
         }
 
         LazyColumn(
-            Modifier.fillMaxSize(),
+            Modifier.fillMaxSize()
+                .graphicsLayer(compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen)
+                .drawWithContent {
+                    drawContent()
+                    drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black), endY = 12.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 12.dp.toPx()), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+                },
             contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 110.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
@@ -328,7 +335,7 @@ fun TodayScreen() {
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            Box(Modifier.size(9.dp).clip(CircleShape).background(if (empty) colors[i].copy(alpha = 0.45f) else colors[i]))
+                            Box(Modifier.size(9.dp).clip(CircleShape).background(if (empty) colors[i].copy(alpha = 0.45f) else colors[i]).border(1.dp, c.ink.copy(alpha = 0.25f), CircleShape))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(m.label, style = U.t.titleS, color = if (empty) c.ink2 else c.ink)

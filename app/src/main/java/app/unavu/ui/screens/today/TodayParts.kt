@@ -20,6 +20,7 @@ import app.unavu.ui.theme.Motion
 import app.unavu.ui.theme.motionTween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -180,7 +181,7 @@ fun WeekStrip(data: AppData, selected: String, modifier: Modifier = Modifier, on
                         Text(d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.ENGLISH), style = U.t.caption, fontWeight = FontWeight.SemiBold, color = fg)
                         Text("${d.dayOfMonth}", style = U.t.label, fontWeight = FontWeight.Bold, color = num)
                         if (cheat) Text("🍕", style = U.t.caption)
-                        else Box(Modifier.padding(top = 2.dp).size(5.dp).clip(CircleShape).background(if (logged) (if (on) c.bg else c.leaf) else Color.Transparent))
+                        else Box(Modifier.padding(top = 2.dp).size(5.dp).clip(CircleShape).background(if (on) c.bg else if (logged) c.leaf else Color.Transparent))
                     }
                 }
             }
@@ -194,8 +195,13 @@ fun NextUpCard(date: String, byMeal: Map<Meal, List<LogEntry>>, left: Int, total
     val nav = nav
     val haptic = LocalHapticFeedback.current
     val isToday = date == today()
-    val now = Meal.forHour(LocalTime.now().hour)
-    val nextNow = if (isToday) Meal.entries.drop(now.ordinal).firstOrNull { byMeal.getValue(it).isEmpty() } else null
+    val time = LocalTime.now()
+    val mins = time.hour * 60 + time.minute
+    val windowEnd = mapOf(Meal.BREAKFAST to 11 * 60, Meal.LUNCH to 15 * 60 + 30, Meal.SNACKS to 18 * 60 + 30, Meal.DINNER to 24 * 60)
+    val unlogged = Meal.entries.filter { byMeal.getValue(it).isEmpty() }
+    val nextNow = if (isToday && mins < 22 * 60 && byMeal.getValue(Meal.DINNER).isEmpty()) {
+        unlogged.firstOrNull { mins < windowEnd.getValue(it) } ?: unlogged.firstOrNull()
+    } else null
     val last = remember { arrayOfNulls<Meal>(1) }
     if (nextNow != null) last[0] = nextNow
     val next = nextNow ?: last[0]
@@ -221,7 +227,7 @@ fun NextUpCard(date: String, byMeal: Map<Meal, List<LogEntry>>, left: Int, total
 @Composable
 fun LegendDot(color: Color, label: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
-        Box(Modifier.size(7.dp).clip(CircleShape).background(color))
+        Box(Modifier.size(7.dp).clip(CircleShape).background(color).border(1.dp, U.c.ink.copy(alpha = 0.25f), CircleShape))
         Spacer(Modifier.width(4.dp))
         Text(label, style = U.t.caption, color = U.c.ink2, fontWeight = FontWeight.SemiBold)
     }
