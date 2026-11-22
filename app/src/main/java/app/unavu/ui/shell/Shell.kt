@@ -128,6 +128,7 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
 
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
         Box(Modifier.weight(1f)) {
+            val slidePx = with(androidx.compose.ui.platform.LocalDensity.current) { 36.dp.roundToPx() }
             AnimatedContent(
                 targetState = Dest(page, tab, nav.stack.size),
                 transitionSpec = {
@@ -135,13 +136,13 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
                         reduced -> EnterTransition.None togetherWith ExitTransition.None
                         // tab change: fade-through
                         targetState.depth == 0 && initialState.depth == 0 ->
-                            fadeIn(tween(Motion.SHORT - 30, delayMillis = 60, easing = Motion.Standard)) togetherWith fadeOut(tween(90, easing = Motion.Standard))
+                            (fadeIn(tween(210, delayMillis = 90, easing = Motion.EmphasizedDecelerate)) + androidx.compose.animation.scaleIn(tween(210, delayMillis = 90, easing = Motion.EmphasizedDecelerate), initialScale = 0.96f)) togetherWith fadeOut(tween(90, easing = Motion.Standard))
                         // push slides in from the right, pop slides back (shared axis X)
                         else -> {
                             val d = if (targetState.depth > initialState.depth) 1 else -1
                             ContentTransform(
-                                slideInHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) { it / 5 * d } + fadeIn(tween(Motion.LONG, easing = Motion.Standard)),
-                                slideOutHorizontally(tween(Motion.LONG, easing = Motion.EmphasizedAccelerate)) { -it / 5 * d } + fadeOut(tween(Motion.LONG / 2, easing = Motion.Standard)),
+                                slideInHorizontally(tween(Motion.LONG, easing = Motion.Emphasized)) { slidePx * d } + fadeIn(tween(Motion.LONG, easing = Motion.Standard)),
+                                slideOutHorizontally(tween(Motion.LONG, easing = Motion.Emphasized)) { -slidePx * d } + fadeOut(tween(Motion.LONG / 2, easing = Motion.Standard)),
                             )
                         }
                     }
@@ -183,7 +184,7 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
                 )
             }
         }
-        if (page == null) BottomBar(tab, onTab = { nav.tab.value = it }, onAdd = { nav.quickAdd.value = QuickAddRequest() })
+        if (page == null) BottomBar(tab, onTab = { nav.tab.value = it }, onAdd = { nav.quickAdd.value = QuickAddRequest() }, addOpen = nav.quickAdd.value != null)
         else Box(Modifier.navigationBarsPadding())
     }
 

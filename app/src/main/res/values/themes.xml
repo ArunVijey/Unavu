@@ -7,8 +7,7 @@
     <!-- Launch theme: system splash (API 31+ native, older via the compat library), swapped for Theme.Unavu by installSplashScreen() -->
     <style name="Theme.Unavu.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/splash_bg</item>
-        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
-        <item name="windowSplashScreenIconBackgroundColor">@color/icon_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
         <item name="postSplashScreenTheme">@style/Theme.Unavu</item>
     </style>
 </resources>

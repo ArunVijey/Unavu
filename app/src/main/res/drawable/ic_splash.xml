@@ -1,0 +1,11 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- brand mark: turmeric disc with the dark bowl glyph -->
+    <path android:fillColor="@color/icon_bg"
+        android:pathData="M54,54m-40,0a40,40 0,1 1,80 0a40,40 0,1 1,-80 0"/>
+    <path android:strokeColor="#FF111111" android:strokeWidth="5" android:strokeLineJoin="round"
+        android:pathData="M36,55 H72 C72,67 64,74 54,74 C44,74 36,67 36,55 Z"/>
+    <path android:strokeColor="#FF111111" android:strokeWidth="4" android:strokeLineCap="round"
+        android:pathData="M46,49 C43,45 49,42 46,37 M54,49 C51,45 57,42 54,37 M62,49 C59,45 65,42 62,37"/>
+</vector>

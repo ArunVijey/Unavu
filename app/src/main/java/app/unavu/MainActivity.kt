@@ -69,6 +69,15 @@ class MainActivity : ComponentActivity() {
         val splash = installSplashScreen()
         val t0 = SystemClock.elapsedRealtime()
         splash.setKeepOnScreenCondition { Store.peek() == null && SystemClock.elapsedRealtime() - t0 < 4000 }
+        // brand mark scales to 1.1 and fades out (skipped under reduced motion)
+        val motionOff = try { android.provider.Settings.Global.getFloat(contentResolver, android.provider.Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f } catch (_: Exception) { false }
+        splash.setOnExitAnimationListener { provider ->
+            val v = provider.iconView
+            if (motionOff) { provider.remove(); return@setOnExitAnimationListener }
+            v.animate().scaleX(1.1f).scaleY(1.1f).alpha(0f).setDuration(250L)
+                .setInterpolator(android.view.animation.PathInterpolator(0.05f, 0.7f, 0.1f, 1f))
+                .withEndAction { provider.remove() }.start()
+        }
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         // only the first launch reads the intent action; a recreate (rotation) must not replay it
