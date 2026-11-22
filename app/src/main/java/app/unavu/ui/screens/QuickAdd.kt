@@ -31,6 +31,17 @@ import app.unavu.ui.theme.LocalReducedMotion
 import app.unavu.ui.theme.Motion
 import app.unavu.ui.theme.motionTween
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.runtime.key
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import app.unavu.data.today
+import app.unavu.ui.SwitchRow
+import java.time.LocalTime
+import kotlinx.coroutines.delay
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -88,14 +99,18 @@ import app.unavu.ui.theme.U
 import kotlin.math.roundToInt
 
 private fun mealByClock(): Meal {
-    val now = java.time.LocalTime.now()
-    val mins = now.hour * 60 + now.minute
-    return when {
-        mins < 11 * 60 -> Meal.BREAKFAST
-        mins < 15 * 60 + 30 -> Meal.LUNCH
-        mins < 18 * 60 + 30 -> Meal.SNACKS
-        else -> Meal.DINNER
-    }
+    val now = LocalTime.now()
+    return mealForMinutes(now.hour * 60 + now.minute)
+}
+
+/** 04:00-11:00 breakfast, -15:30 lunch, -18:30 snacks, -23:00 dinner; late night counts as snacks. */
+internal fun mealForMinutes(mins: Int): Meal = when {
+    mins < 4 * 60 -> Meal.SNACKS
+    mins < 11 * 60 -> Meal.BREAKFAST
+    mins < 15 * 60 + 30 -> Meal.LUNCH
+    mins < 18 * 60 + 30 -> Meal.SNACKS
+    mins < 23 * 60 -> Meal.DINNER
+    else -> Meal.SNACKS
 }
 
 private enum class Mode(val labelRes: Int) { FOOD(R.string.f_mode_food), LIQUID(R.string.f_mode_liquid), WEIGHT(R.string.f_mode_weight) }
@@ -113,7 +128,9 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val date = nav.date.value
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
-    val ctx = androidx.compose.ui.platform.LocalResources.current
+    val ctx = LocalResources.current
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var modeName by rememberSaveable { mutableStateOf(request.mode) }
     val mode = runCatching { Mode.valueOf(modeName) }.getOrDefault(Mode.FOOD)
@@ -137,26 +154,27 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val typed: List<Pair<String, NewItem>> = parsed.items.mapIndexed { i, it -> "$i:${it.food.id}".let { k -> k to (overrides[k] ?: it.toNew()) } }
     val all: List<Pair<String, NewItem>> = typed + comboItems.mapIndexed { i, it -> "combo$i" to it }
     val needsMeal = all.isNotEmpty()
-    // total of the displayed (rounded) lines so the rows always add up to it
-    val totalKcal = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal?.roundToInt() ?: 0 }
+    // sum the unrounded values, then round once: the same rule Today uses for meal and day totals
+    val totalKcal = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal ?: 0.0 }.roundToInt()
     var done by remember { mutableStateOf(false) }
-    val closeAfter: () -> Unit = { done = true }
+    // the keyboard leaves the moment Add is pressed, together with the sheet
+    val closeAfter: () -> Unit = { keyboard?.hide(); focusManager.clearFocus(); done = true }
     var dismissed by remember { mutableStateOf(false) }
     val dismissOnce: () -> Unit = { if (!dismissed) { dismissed = true; onDismiss() } }
     LaunchedEffect(done) {
         if (done && !dismissed) {
-            kotlinx.coroutines.delay(250) // let the success tick land, then slide the sheet away
+            delay(250) // let the success tick land, then slide the sheet away
             if (!dismissed) { runCatching { sheet.hide() }; dismissOnce() }
         }
     }
-    val kcalShown by androidx.compose.animation.core.animateIntAsState(totalKcal, motionTween(Motion.LONG), label = "kcalCount")
+    val kcalShown by animateIntAsState(totalKcal, motionTween(Motion.LONG), label = "kcalCount")
 
     // continuity with the FAB: content grows from the bottom-right corner (where the FAB sits)
     var entered by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { entered = true }
-    val enterScale by androidx.compose.animation.core.animateFloatAsState(if (entered || reducedMotion) 1f else 0.94f, motionTween(Motion.LONG, Motion.EmphasizedDecelerate), label = "sheetEnter")
+    val enterScale by animateFloatAsState(if (entered || reducedMotion) 1f else 0.94f, motionTween(Motion.LONG, Motion.EmphasizedDecelerate), label = "sheetEnter")
     ModalBottomSheet(onDismissRequest = dismissOnce, sheetState = sheet, containerColor = c.bg, dragHandle = null) {
-        Column(Modifier.fillMaxWidth().graphicsLayer { transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.92f, 1f); scaleX = enterScale; scaleY = enterScale }.padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxWidth().graphicsLayer { transformOrigin = TransformOrigin(0.92f, 1f); scaleX = enterScale; scaleY = enterScale }.padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SlidingSegments(Mode.entries, mode, { stringResource(it.labelRes) }) { m ->
                     modeName = m.name; text = ""; overrides.clear(); comboItems = emptyList()
@@ -222,7 +240,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                     if (all.isNotEmpty()) {
                         
                         AppCard(padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
-                            all.forEachIndexed { n, (key, item) -> androidx.compose.runtime.key(key) { StaggerIn(n) { ParsedRow(item) { editingKey = key } } } }
+                            all.forEachIndexed { n, (key, item) -> key(key) { StaggerIn(n) { ParsedRow(item) { editingKey = key } } } }
                             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp)) {
                                 Text(stringResource(R.string.f_total_hint), color = c.ink2, style = t.caption, modifier = Modifier.weight(1f))
                                 Text(stringResource(R.string.f_kcal, kcalShown), style = t.bodyS, fontWeight = FontWeight.Bold)
@@ -269,7 +287,8 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
 
                     if (needsMeal) {
                         SectionLabel(stringResource(R.string.f_which_meal))
-                        MealPicker(meal, cheatLabel = stringResource(R.string.f_cheat_meal), cheat = cheat, onCheat = { cheat = !cheat }) { mealName = it.name }
+                        MealPicker(meal) { mealName = it.name }
+                        SwitchRow(stringResource(R.string.f_cheat_meal), cheat) { cheat = it }
                     }
                     Spacer(Modifier.height(12.dp))
                     val count = all.size + if (waterMl > 0) 1 else 0
@@ -309,7 +328,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                     val bad = text.isNotBlank() && (kg == null || kg !in 20.0..300.0)
                     val rangeMsg = stringResource(R.string.f_weight_range_error)
                     Text(
-                        if (date == app.unavu.data.today()) stringResource(R.string.f_weigh_today) else stringResource(R.string.f_weigh_date, date),
+                        if (date == today()) stringResource(R.string.f_weigh_today) else stringResource(R.string.f_weigh_date, date),
                         color = c.ink2, style = t.caption,
                     )
                     if (bad) Text(rangeMsg, color = c.chiInk, style = t.caption, modifier = Modifier.semantics { error(rangeMsg) })

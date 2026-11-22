@@ -18,7 +18,10 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.animation.core.Animatable
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import app.unavu.ui.pressScale
@@ -93,15 +96,14 @@ internal fun ParsedRow(item: NewItem, onClick: () -> Unit) {
 }
 
 /** Big accent button. [enabled] = false dims it; the label morphs as it changes; [success] swaps it for a drawn check. */
-@OptIn(androidx.compose.animation.ExperimentalAnimationApi::class)
 @Composable
 fun AddButton(text: String, enabled: Boolean, success: Boolean = false, onClick: () -> Unit) {
     val c = U.c
     val bg by animateColorAsState(if (enabled || success) c.acc else c.acc.copy(alpha = 0.35f), motionTween(), label = "addBg")
-    val prog = remember { androidx.compose.animation.core.Animatable(0f) }
+    val prog = remember { Animatable(0f) }
     val reduced = LocalReducedMotion.current
     LaunchedEffect(success) {
-        if (success) { if (reduced) prog.snapTo(1f) else prog.animateTo(1f, androidx.compose.animation.core.tween(300, easing = Motion.EmphasizedDecelerate)) } else prog.snapTo(0f)
+        if (success) prog.animateTo(1f, motionTween(reduced, Motion.LONG)) else prog.snapTo(0f)
     }
     Box(
         Modifier.fillMaxWidth().heightIn(min = 52.dp).pressScale().clip(RoundedCornerShape(18.dp)).background(bg)
@@ -111,15 +113,15 @@ fun AddButton(text: String, enabled: Boolean, success: Boolean = false, onClick:
         if (success) {
             Canvas(Modifier.size(22.dp)) {
                 val p = Path().apply { moveTo(size.width * 0.12f, size.height * 0.55f); lineTo(size.width * 0.4f, size.height * 0.82f); lineTo(size.width * 0.9f, size.height * 0.22f) }
-                val seg = androidx.compose.ui.graphics.PathMeasure().also { it.setPath(p, false) }
+                val seg = PathMeasure().also { it.setPath(p, false) }
                 val out = Path()
                 seg.getSegment(0f, seg.length * prog.value, out, true)
-                drawPath(out, c.onAcc, style = Stroke(size.width * 0.14f, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+                drawPath(out, c.onAcc, style = Stroke(size.width * 0.14f, cap = StrokeCap.Round, join = StrokeJoin.Round))
             }
         } else {
             AnimatedContent(
                 text, label = "addLabel",
-                transitionSpec = { if (reduced) EnterTransition.None togetherWith ExitTransition.None else (fadeIn(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) + slideInVertically(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) { it / 3 }) togetherWith fadeOut(androidx.compose.animation.core.tween(90)) },
+                transitionSpec = { if (reduced) EnterTransition.None togetherWith ExitTransition.None else (fadeIn(motionTween(false, Motion.SHORT)) + slideInVertically(motionTween(false, Motion.SHORT)) { it / 3 }) togetherWith fadeOut(motionTween(false, Motion.XSHORT, Motion.Standard)) },
             ) { s -> Text(s, style = U.t.body, fontWeight = FontWeight.ExtraBold, color = if (enabled) c.onAcc else c.ink2) }
         }
     }
@@ -170,7 +172,7 @@ fun LiquidTile(emoji: String, name: String, sub: String, on: Boolean, modifier: 
 @Composable
 fun StaggerIn(index: Int, content: @Composable () -> Unit) {
     val reduced = LocalReducedMotion.current
-    val p = remember { androidx.compose.animation.core.Animatable(if (reduced) 1f else 0f) }
-    LaunchedEffect(Unit) { if (!reduced) p.animateTo(1f, androidx.compose.animation.core.tween(Motion.MEDIUM, delayMillis = index * 40, easing = Motion.EmphasizedDecelerate)) }
+    val p = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!reduced) p.animateTo(1f, motionTween(false, Motion.MEDIUM, delayMs = index * 40)) }
     Box(Modifier.graphicsLayer { alpha = p.value; translationY = (1f - p.value) * 10.dp.toPx() }) { content() }
 }

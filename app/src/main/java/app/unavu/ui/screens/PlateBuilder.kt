@@ -91,6 +91,11 @@ import app.unavu.ui.TopBar
 import app.unavu.ui.nav
 import app.unavu.ui.theme.U
 import kotlin.math.roundToInt
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalResources
+import kotlinx.coroutines.delay
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.animation.core.animateFloatAsState
 
 /** Sides that usually go with a main. */
 val PAIRINGS: Map<String, List<String>> = run {
@@ -150,8 +155,8 @@ fun PlateBuilderScreen(page: Page.Plate) {
     var mealName by rememberSaveable { mutableStateOf((page.meal ?: existing?.meal)?.name) }
     val meal = mealName?.let { nm -> Meal.entries.firstOrNull { it.name == nm } }
     val feedback = app.unavu.ui.LocalFeedback.current
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val ctx = androidx.compose.ui.platform.LocalResources.current
+    val haptic = LocalHapticFeedback.current
+    val ctx = LocalResources.current
     var cheat by rememberSaveable { mutableStateOf(false) }
     var query by rememberSaveable { mutableStateOf("") }
     var editing by rememberSaveable { mutableStateOf<Int?>(null) }
@@ -171,7 +176,7 @@ fun PlateBuilderScreen(page: Page.Plate) {
     val total = items.fold(Nutr()) { acc, it -> acc + (FoodDb.get(it.foodId)?.nutrFor(it.qty, it.unit, it.choices) ?: Nutr()) }
     val kcalShown by animateIntAsState(total.kcal.roundToInt(), motionTween(Motion.LONG), label = "plateKcal")
     var logged by remember { mutableStateOf(false) }
-    LaunchedEffect(logged) { if (logged) { kotlinx.coroutines.delay(if (reducedMotion) 250L else 600L); nav.pop() } }
+    LaunchedEffect(logged) { if (logged) { delay(if (reducedMotion) 250L else 600L); nav.pop() } }
 
     Column(Modifier.fillMaxSize()) {
         TopBar(if (comboMode) (existing?.let { "Edit combo" } ?: "New combo") else "Build a plate", onBack = { nav.pop() })
@@ -269,10 +274,10 @@ fun PlateBuilderScreen(page: Page.Plate) {
                 } else {
                     Box(Modifier.weight(1f)) { SmallSecondary("⭐ Save") { naming = true } }
                     Box(Modifier.weight(1.6f)) {
-                        app.unavu.ui.screens.AddButton(if (meal == null) "PICK A MEAL" else "LOG ${meal!!.label.uppercase()}", items.isNotEmpty() && meal != null, success = logged) {
+                        AddButton(if (meal == null) "PICK A MEAL" else "LOG ${meal!!.label.uppercase()}", items.isNotEmpty() && meal != null, success = logged) {
                             val before = store.data.value
                             store.logItems(items.toList(), meal!!, nav.date.value, cheat)
-                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
+                            haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                             feedback?.show(ctx.getString(app.unavu.R.string.f_added_to, items.mapNotNull { FoodDb.get(it.foodId)?.name }.joinToString(", "), meal.label), ctx.getString(app.unavu.R.string.f_undo)) { store.restoreSnapshot(before) }
                             logged = true
                         }
@@ -319,7 +324,7 @@ private fun Tile(f: Food, count: Double?, modifier: Modifier, onClick: () -> Uni
     val fill by animateColorAsState(if (on) c.accS else c.sf, motionTween(), label = "tileFill")
     val disc by animateColorAsState(if (on) c.sf else c.turS, motionTween(), label = "tileDisc")
     val reduced = LocalReducedMotion.current
-    val badge by androidx.compose.animation.core.animateFloatAsState(
+    val badge by animateFloatAsState(
         if (on) 1f else 0f,
         motionSpring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "tileBadge",
     )

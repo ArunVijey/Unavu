@@ -1,6 +1,7 @@
 package app.unavu.ui.screens
 
 import android.content.Intent
+import app.unavu.ui.Status
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -170,7 +171,7 @@ fun InsightsScreen() {
                             val line = stringResource(R.string.g_ins_nutrient_desc, n.name, fmtNum(have), fmtNum(target))
                             Row(Modifier.fillMaxWidth().padding(top = 8.dp).semantics(mergeDescendants = true) { contentDescription = line }, verticalAlignment = Alignment.CenterVertically) {
                                 Text(n.name, style = U.t.label, modifier = Modifier.widthIn(min = 88.dp, max = 120.dp))
-                                Box(Modifier.weight(1f)) { Track((have / target).toFloat(), when (st) { app.unavu.ui.Status.OK -> c.leaf; app.unavu.ui.Status.LOW -> c.tur; else -> c.chi }, height = 8.dp) }
+                                Box(Modifier.weight(1f)) { Track((have / target).toFloat(), when (st) { Status.OK -> c.leaf; Status.LOW -> c.tur; else -> c.chi }, height = 8.dp) }
                                 Text("  ${fmtNum(have)}/${fmtNum(target)}", style = U.t.caption, color = c.ink2)
                             }
                         }
@@ -185,9 +186,12 @@ fun InsightsScreen() {
                     }
                 }
             }
-            staggerItem("report", "card", 9) {
-                val last = YearMonth.now().minusMonths(1)
-                val thisM = YearMonth.now()
+            // report buttons only for months that have entries; no card at all without data
+            val reportMonths = listOf(YearMonth.now().minusMonths(1), YearMonth.now()).filter { ym ->
+                val prefix = ym.toString()
+                data.entries.any { it.date.startsWith(prefix) }
+            }
+            if (reportMonths.isNotEmpty()) staggerItem("report", "card", 9) {
                 val openLabel = stringResource(R.string.g_ins_report_open)
                 val failFallback = stringResource(R.string.g_ins_report_failed_generic)
                 AppCard {
@@ -195,7 +199,7 @@ fun InsightsScreen() {
                     Text(stringResource(R.string.g_ins_report_body), style = U.t.bodyS, color = c.ink2)
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(last, thisM).forEach { ym ->
+                        reportMonths.forEach { ym ->
                             val label = "${ym.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)} ${ym.year}"
                             val savedMsg = stringResource(R.string.g_ins_report_saved, label)
                             val failedMsg = stringResource(R.string.g_ins_report_failed, label)

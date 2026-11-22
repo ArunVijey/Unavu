@@ -26,7 +26,7 @@
     <string name="f_water_added">💧 +%1$d ml water</string>
     <string name="f_water_clear">Clear water amount</string>
     <string name="f_drinks_title">Drinks · tap to add</string>
-    <string name="f_which_meal">Which meal? · tap one</string>
+    <string name="f_which_meal">Adding to</string>
     <string name="f_cheat_meal">🍕 Cheat meal</string>
     <string name="f_btn_type_food">Type what you ate</string>
     <string name="f_btn_add_drink">Add a drink</string>

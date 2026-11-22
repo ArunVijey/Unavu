@@ -53,6 +53,7 @@ import java.util.Date
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.platform.LocalResources
 
 @Composable
 fun BackupScreen() {
@@ -61,7 +62,7 @@ fun BackupScreen() {
     val data = LocalData.current
     val store = nav.store
     val context = LocalContext.current
-    val res = androidx.compose.ui.platform.LocalResources.current
+    val res = LocalResources.current
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()

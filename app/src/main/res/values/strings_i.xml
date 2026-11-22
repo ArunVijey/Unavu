@@ -39,8 +39,6 @@
     <string name="i_reminders">Reminders</string>
     <string name="i_reminders_on">%d on</string>
     <string name="i_reminders_off_perm">%d on · notifications blocked</string>
-    <string name="i_saved_combos">Saved combos &amp; my recipes</string>
-    <string name="i_in_meals_tab">In the Meals tab</string>
     <string name="i_about_food">About &amp; food data</string>
     <string name="i_about_food_sub">IFCT 2017 · %d dishes</string>
 

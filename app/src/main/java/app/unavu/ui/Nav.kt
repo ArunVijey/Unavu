@@ -12,6 +12,7 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import app.unavu.data.AppData
 import app.unavu.data.Meal
 import app.unavu.data.Store
+import app.unavu.data.today
 
 /** Pages pushed on top of the 4 tabs. */
 @Serializable
@@ -51,7 +52,7 @@ class Nav(val store: Store, restored: String? = null) {
     val stack = mutableStateListOf<Page>()
     val tab = mutableStateOf(Tab.TODAY)
     /** The day Today is showing (also where new logs go). */
-    val date = mutableStateOf(app.unavu.data.today())
+    val date = mutableStateOf(today())
     /** Open the quick-add sheet (optionally preset to a meal). */
     val quickAdd = mutableStateOf<QuickAddRequest?>(null)
 

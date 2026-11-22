@@ -43,14 +43,16 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.MainScope
 
 class UnavuApp : Application() {
     override fun onCreate() {
         super.onCreate()
         Scheduler.ensureChannel(this)
         // Load the data + food database off the main thread, in parallel with the first screen starting up.
-        @OptIn(kotlinx.coroutines.FlowPreview::class)
-        kotlinx.coroutines.MainScope().launch {
+        @OptIn(FlowPreview::class)
+        MainScope().launch {
             val store = withContext(Dispatchers.Default) { Store.get(this@UnavuApp) }
             // keep home-screen widgets in step with the data (debounced so a burst of edits = one refresh)
             store.data.drop(1).debounce(1500).collect { Widgets.refresh(this@UnavuApp) }

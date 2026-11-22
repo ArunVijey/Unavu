@@ -41,6 +41,7 @@ import app.unavu.ui.theme.InterFamily
 import app.unavu.ui.theme.Motion
 import app.unavu.ui.theme.motionTween
 import app.unavu.ui.theme.U
+import androidx.compose.animation.animateColorAsState
 
 @Composable
 fun AppearanceScreen() {
@@ -89,8 +90,8 @@ fun AppearanceScreen() {
                 listOf(AppFont.GOOGLE_SANS_FLEX to GoogleSansFlex, AppFont.INTER to InterFamily, AppFont.EXCALIFONT to ExcalifontFamily).forEach { (font, family) ->
                     val on = if (s.sketch) font == AppFont.EXCALIFONT else s.font == font
                     val desc = stringResource(when (font) { AppFont.GOOGLE_SANS_FLEX -> R.string.i_font_default; AppFont.INTER -> R.string.i_font_compact; AppFont.EXCALIFONT -> R.string.i_font_hand })
-                    val borderA by androidx.compose.animation.animateColorAsState(if (on) c.acc else c.line, motionTween(Motion.MEDIUM), label = "fontBorder")
-                    val bgA by androidx.compose.animation.animateColorAsState(if (on) c.accS else c.sf, motionTween(Motion.MEDIUM), label = "fontBg")
+                    val borderA by animateColorAsState(if (on) c.acc else c.line, motionTween(Motion.MEDIUM), label = "fontBorder")
+                    val bgA by animateColorAsState(if (on) c.accS else c.sf, motionTween(Motion.MEDIUM), label = "fontBg")
                     Column(
                         Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(18.dp)).background(bgA)
                             .border(if (on) 2.dp else 1.dp, borderA, RoundedCornerShape(18.dp))

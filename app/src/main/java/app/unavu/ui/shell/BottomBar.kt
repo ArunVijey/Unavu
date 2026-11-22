@@ -36,6 +36,8 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -67,9 +69,9 @@ private fun tabLabel(t: Tab): String = stringResource(
 
 /** Bottom tab bar + the turmeric add button. Tabs are one selectable group (Role.Tab, >= 48dp, ripple). */
 @Composable
-fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolean = false) {
+fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit) {
     val c = U.c
-    val bigFont = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
+    val bigFont = LocalDensity.current.fontScale > 1.3f
     val haptic = LocalHapticFeedback.current
     Divider()
     Row(
@@ -83,7 +85,7 @@ fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolea
                 val col by animateColorAsState(if (on) c.ink else c.ink2, motionTween(), label = "tabColor")
                 val ind by animateFloatAsState(if (on) 1f else 0f, motionTween(), label = "tabIndicator")
                 Column(
-                    Modifier.weight(1f).heightIn(min = 64.dp).semantics { contentDescription = label }.selectable(selected = on, role = Role.Tab) {
+                    Modifier.weight(1f).heightIn(min = 64.dp).semantics(mergeDescendants = true) { if (bigFont) contentDescription = label }.selectable(selected = on, role = Role.Tab) {
                         if (!on) { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); onTab(t) }
                     },
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -105,23 +107,22 @@ fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolea
                 }
             }
         }
-        BarFab(Modifier.padding(start = 6.dp), open = addOpen, contentDescription = stringResource(R.string.b_fab_add_food)) {
+        BarFab(Modifier.padding(start = 6.dp), contentDescription = stringResource(R.string.b_fab_add_food)) {
             haptic.performHapticFeedback(HapticFeedbackType.ContextClick)
             onAdd()
         }
     }
 }
 
-/** Turmeric add button: softer shadow, 0.92 press scale, the + turns into an x (45deg) while the sheet is open. */
+/** Turmeric add button: softer shadow, 0.92 press scale. */
 @Composable
-private fun BarFab(modifier: Modifier, open: Boolean, contentDescription: String, onClick: () -> Unit) {
+private fun BarFab(modifier: Modifier, contentDescription: String, onClick: () -> Unit) {
     val c = U.c
     val reduced = LocalReducedMotion.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
     val focused by source.collectIsFocusedAsState()
     val scale by animateFloatAsState(if (pressed && !reduced) 0.92f else 1f, motionTween(Motion.SHORT), label = "fabPress")
-    val rot by animateFloatAsState(if (open) 45f else 0f, motionTween(Motion.MEDIUM, Motion.Emphasized), label = "fabRot")
     Box(
         modifier
             .size(56.dp)
@@ -130,11 +131,11 @@ private fun BarFab(modifier: Modifier, open: Boolean, contentDescription: String
             .clip(CircleShape)
             .background(c.acc)
             .then(if (focused) Modifier.border(2.dp, c.ink, CircleShape) else Modifier)
-            .clickable(interactionSource = source, indication = androidx.compose.material3.ripple(bounded = true, color = c.onAcc), role = Role.Button, onClick = onClick)
+            .clickable(interactionSource = source, indication = ripple(bounded = true, color = c.onAcc), role = Role.Button, onClick = onClick)
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
-        Canvas(Modifier.size(20.dp).graphicsLayer { rotationZ = rot }) {
+        Canvas(Modifier.size(20.dp)) {
             val w = size.width; val sw = w * 0.13f
             drawLine(c.onAcc, Offset(w / 2, 0f), Offset(w / 2, w), sw, StrokeCap.Round)
             drawLine(c.onAcc, Offset(0f, w / 2), Offset(w, w / 2), sw, StrokeCap.Round)

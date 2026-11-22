@@ -1,6 +1,24 @@
 package app.unavu.ui.screens
 
+import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import android.content.ContextWrapper
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Arrangement
@@ -101,8 +119,8 @@ fun SettingRadioRow(title: String, subtitle: String?, selected: Boolean, onSelec
             Text(title, style = U.t.titleS.iBold(), color = c.ink)
             if (subtitle != null) Text(subtitle, style = U.t.bodyS, color = c.ink2)
         }
-        val ring by androidx.compose.animation.animateColorAsState(if (selected) c.acc else c.ink2, motionTween(Motion.SHORT), label = "radioRing")
-        val dot by androidx.compose.animation.core.animateFloatAsState(if (selected) 1f else 0f, motionTween(Motion.MEDIUM), label = "radioDot")
+        val ring by animateColorAsState(if (selected) c.acc else c.ink2, motionTween(Motion.SHORT), label = "radioRing")
+        val dot by animateFloatAsState(if (selected) 1f else 0f, motionTween(Motion.MEDIUM), label = "radioDot")
         Box(
             Modifier.size(22.dp).clip(CircleShape).border(2.dp, ring, CircleShape),
             contentAlignment = Alignment.Center,
@@ -121,7 +139,34 @@ internal fun Context.findActivity(): ComponentActivity? {
 }
 
 internal fun notificationsAllowed(context: Context): Boolean =
-    androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+    NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+/** Live notification permission state plus a one-tap fix (asks once on 33+, then opens the app's notification settings). */
+internal class NotificationAccess(val allowed: Boolean, val fix: () -> Unit)
+
+@Composable
+internal fun rememberNotificationAccess(): NotificationAccess {
+    val context = LocalContext.current
+    var allowed by remember { mutableStateOf(notificationsAllowed(context)) }
+    var asked by rememberSaveable { mutableStateOf(false) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { allowed = notificationsAllowed(context) }
+    val askPerm = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed = notificationsAllowed(context) }
+    return NotificationAccess(allowed) {
+        val canAsk = Build.VERSION.SDK_INT >= 33 && !asked &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (canAsk) {
+            asked = true; askPerm.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            openNotificationSettings(context)
+        }
+    }
+}
+
+internal fun openNotificationSettings(context: Context) {
+    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    runCatching { context.startActivity(intent) }
+}
 
 /**
  * Settings list row: 56dp+ target, leading emoji in a tinted 36dp rounded square, drawn chevron
@@ -134,6 +179,8 @@ fun SettingsRow(
     emoji: String? = null,
     trailing: String? = null,
     chevron: Boolean = trailing == null,
+    action: String? = null,
+    onAction: (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     val c = U.c
@@ -153,6 +200,12 @@ fun SettingsRow(
             if (subtitle != null) Text(subtitle, style = U.t.bodyS, color = c.ink2)
         }
         if (trailing != null) Text(trailing, style = U.t.label, color = c.ink2, modifier = Modifier.clearAndSetSemantics {})
+        // optional inline action (its own 48dp button), e.g. "Fix" on a blocked row
+        if (action != null && onAction != null) Text(
+            action, color = c.accInk, style = U.t.label.iBold(),
+            modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
+                .clickable(role = Role.Button, onClick = onAction).padding(horizontal = 10.dp, vertical = 12.dp),
+        )
         if (chevron && onClick != null) ChevronIcon(modifier = Modifier.clearAndSetSemantics {})
     }
 }

@@ -1,10 +1,8 @@
 package app.unavu.ui.screens
 
 import android.Manifest
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -25,6 +23,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.semantics.Role
+import app.unavu.ui.EmojiText
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -125,39 +131,33 @@ fun RemindersScreen() {
 private fun ReminderRow(title: String, sub: String, emoji: String, on: Boolean, onToggle: (Boolean) -> Unit, onEditTime: () -> Unit) {
     val c = U.c
     val cd = stringResource(R.string.i_reminder_toggle_cd, title)
-    androidx.compose.foundation.layout.Row(
+    Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp),
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        androidx.compose.foundation.layout.Row(
+        Row(
             Modifier.weight(1f).heightIn(min = 56.dp)
-                .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onEditTime)
+                .clickable(role = Role.Button, onClick = onEditTime)
                 .padding(vertical = 8.dp),
-            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+            verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            androidx.compose.foundation.layout.Box(
-                Modifier.size(34.dp).clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp)).background(c.sf2).clearAndSetSemantics { },
-                contentAlignment = androidx.compose.ui.Alignment.Center,
-            ) { app.unavu.ui.EmojiText(emoji, 17) }
+            Box(
+                Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(c.sf2).clearAndSetSemantics { },
+                contentAlignment = Alignment.Center,
+            ) { EmojiText(emoji, 17) }
             Column(Modifier.weight(1f)) {
                 Text(title, style = U.t.titleS.iBold(), color = c.ink)
                 Text(sub, style = U.t.bodyS, color = c.ink2)
             }
         }
-        androidx.compose.material3.Switch(
+        Switch(
             checked = on, onCheckedChange = onToggle, modifier = Modifier.semantics { contentDescription = cd },
-            colors = androidx.compose.material3.SwitchDefaults.colors(
+            colors = SwitchDefaults.colors(
                 checkedTrackColor = c.acc, checkedThumbColor = c.onAcc,
                 uncheckedTrackColor = c.sf2, uncheckedThumbColor = c.ink2, uncheckedBorderColor = c.line,
             ),
         )
     }
-}
-
-private fun openNotificationSettings(context: android.content.Context) {
-    val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-    runCatching { context.startActivity(intent) }
 }

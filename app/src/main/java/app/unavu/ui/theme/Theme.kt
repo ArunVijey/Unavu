@@ -34,6 +34,7 @@ import app.unavu.R
 import app.unavu.data.AppFont
 import app.unavu.data.Settings
 import app.unavu.data.ThemeMode
+import androidx.activity.ComponentActivity
 
 /** Colour tokens, same names as in the mockups. */
 data class AppColors(
@@ -210,7 +211,7 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
         // enableEdgeToEdge owns the bar icon style; re-apply it from the APP theme (not the system one)
         val navArgb = c.sf.toArgb()
         DisposableEffect(dark, navArgb) {
-            val activity = view.context as? androidx.activity.ComponentActivity
+            val activity = view.context as? ComponentActivity
             // the splash-screen library re-applies the XML bar style when it exits, so apply ours again after that
             val apply = { activity?.enableEdgeToEdge(
                 statusBarStyle = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)

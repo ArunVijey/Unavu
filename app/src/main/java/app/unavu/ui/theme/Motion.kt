@@ -27,6 +27,10 @@ import androidx.compose.runtime.staticCompositionLocalOf
  * LocalReducedMotion mirrors the system animator duration scale (set in AppTheme).
  */
 object Motion {
+    /** Fade-out half of a fade-through, tiny confirmations. */
+    const val XSHORT = 90
+    /** Fade-in half of a fade-through (starts after XSHORT). */
+    const val FADE_THROUGH = 210
     const val SHORT = 150
     const val MEDIUM = 250
     const val LONG = 300
@@ -41,8 +45,12 @@ val LocalReducedMotion: ProvidableCompositionLocal<Boolean> = staticCompositionL
 
 /** A tween that becomes an instant snap when reduced motion is on. */
 @Composable
-fun <T> motionTween(durationMs: Int = Motion.MEDIUM, easing: Easing = Motion.EmphasizedDecelerate): FiniteAnimationSpec<T> =
-    if (LocalReducedMotion.current) snap() else tween(durationMs, easing = easing)
+fun <T> motionTween(durationMs: Int = Motion.MEDIUM, easing: Easing = Motion.EmphasizedDecelerate, delayMs: Int = 0): FiniteAnimationSpec<T> =
+    motionTween(LocalReducedMotion.current, durationMs, easing, delayMs)
+
+/** Non-composable variant for transitionSpec lambdas and coroutines: pass the reduced-motion flag read in composition. */
+fun <T> motionTween(reduced: Boolean, durationMs: Int, easing: Easing = Motion.EmphasizedDecelerate, delayMs: Int = 0): FiniteAnimationSpec<T> =
+    if (reduced) snap() else tween(durationMs, delayMillis = delayMs, easing = easing)
 
 /** A spring that becomes an instant snap when reduced motion is on. */
 @Composable
