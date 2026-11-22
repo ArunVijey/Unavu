@@ -46,7 +46,7 @@ import app.unavu.ui.LocalData
 import app.unavu.ui.MealPicker
 import app.unavu.ui.Page
 import app.unavu.ui.PrimaryButton
-import app.unavu.ui.SectionLabel
+import app.unavu.ui.EmptyState
 import app.unavu.ui.Status
 import app.unavu.ui.StatusBadge
 import app.unavu.ui.TamilText
@@ -54,6 +54,32 @@ import app.unavu.ui.TopBar
 import app.unavu.ui.Track
 import app.unavu.ui.nav
 import app.unavu.ui.theme.U
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.theme.motionTween
+import app.unavu.ui.pressScale
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -78,7 +104,7 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
 
     Column(Modifier.fillMaxSize()) {
         TopBar("Food", onBack = { nav.pop() })
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Emoji(food.emoji, 54)
                 Column {
@@ -96,7 +122,7 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                 ChoiceChip("Customise…", false) { customise = true }
             }
             AppCard {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     MacroDonut(n.protein * 4, n.carbs * 4, n.fat * 9, n.kcal.roundToInt())
                     Column(Modifier.weight(1f)) {
                         val tot = (n.protein * 4 + n.carbs * 4 + n.fat * 9).coerceAtLeast(1.0)
@@ -117,12 +143,12 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                     "Per 100 ${if (food.liquid) "ml" else "g"}: ${n100.kcal.roundToInt()} kcal · P ${"%.1f".format(n100.protein)} g · C ${"%.1f".format(n100.carbs)} g · F ${"%.1f".format(n100.fat)} g · fibre ${"%.1f".format(n100.fibre)} g",
                     style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 6.dp),
                 )
-                Text("Amount: ${app.unavu.data.fmtQty(qty)} ${app.unavu.data.unitLabel(unit, qty)} ≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}", style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
+                PortionStepper(qty, step = if (unit == "g" || unit == "ml") 10.0 else 0.5, label = "${app.unavu.data.unitLabel(unit, qty)} ≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}") { qty = it }
             }
             if (t != null) {
-                AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
-                    SectionLabel("Nutrients · % of your daily target")
-                    NUTRIENTS.forEach { d ->
+                AppCard(padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                    SectionTitle("Nutrients · % of your daily target")
+                    NUTRIENTS.forEachIndexed { i, d -> StaggerIn(i) { Column {
                         val v = d.value(n); val tv = d.target(t)
                         Row(Modifier.fillMaxWidth().padding(top = 5.dp)) {
                             Text(d.name, style = U.t.bodyS, modifier = Modifier.weight(1f))
@@ -130,14 +156,14 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                             Text("  ${(v / tv * 100).roundToInt()}%", style = U.t.caption, color = c.ink2)
                         }
                         Track((v / tv).toFloat(), if (d.limit) c.chi else c.leaf, Modifier.padding(top = 3.dp, bottom = 3.dp), height = 5.dp)
-                    }
+                    } } }
                 }
             }
             // what's in it (per this portion)
             val (batch, yieldG) = food.batch(choices)
             val factor = qty * food.unit(unit).grams / yieldG
-            AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
-                SectionLabel("What's in this portion")
+            AppCard(padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+                SectionTitle("What's in this portion")
                 batch.entries.filter { (k, g) -> k != "water" && g * factor >= 0.5 }.sortedByDescending { it.value }.forEachIndexed { i, (k, g) ->
                     if (i > 0) Divider()
                     val ing = FoodDb.ingredient(k)
@@ -151,7 +177,7 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                     style = U.t.caption, color = c.ink2, modifier = Modifier.padding(vertical = 6.dp),
                 )
             }
-            SectionLabel("Add to")
+            SectionTitle("Add to")
             MealPicker(meal) { mealName = it.name }
             PrimaryButton(if (meal == null) "Pick a meal above" else "＋ Add to ${meal!!.label}", enabled = meal != null) {
                 val before = nav.store.data.value
@@ -175,6 +201,10 @@ fun MacroDonut(p: Double, cb: Double, f: Double, kcal: Int) {
     val c = U.c
     val tot = (p + cb + f).coerceAtLeast(1.0)
     val desc = "${kcal} kcal: protein ${(p / 4).roundToInt()} g, carbs ${(cb / 4).roundToInt()} g, fat ${(f / 9).roundToInt()} g"
+    val reduced = LocalReducedMotion.current
+    val sweepP = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!reduced) sweepP.animateTo(1f, tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) }
+    val kcalShown by animateIntAsState(kcal, motionTween(Motion.LONG), label = "donutKcal")
     Box(Modifier.size(92.dp).semantics(mergeDescendants = true) { contentDescription = desc }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(92.dp)) {
             val sw = 12.dp.toPx()
@@ -183,14 +213,46 @@ fun MacroDonut(p: Double, cb: Double, f: Double, kcal: Int) {
             drawArc(c.sf2, 0f, 360f, false, o, r, style = Stroke(sw))
             var start = -90f
             listOf(p to c.leaf, cb to c.tur, f to c.m3).forEach { (v, col) ->
-                val sweep = (v / tot * 360).toFloat()
+                val sweep = (v / tot * 360).toFloat() * sweepP.value
                 if (sweep > 0) drawArc(col, start, sweep, false, o, r, style = Stroke(sw))
                 start += sweep
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("$kcal", fontWeight = FontWeight.ExtraBold, style = U.t.title)
+            Text("$kcalShown", fontWeight = FontWeight.ExtraBold, style = U.t.title)
             Text("kcal", style = U.t.caption, color = c.ink2)
         }
     }
+}
+
+/** Amount control: round -/+ buttons with a number that slides up or down with each step (instant under reduced motion). */
+@Composable
+private fun PortionStepper(qty: Double, step: Double, label: String, onChange: (Double) -> Unit) {
+    val c = U.c
+    val reduced = LocalReducedMotion.current
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        StepBtn("−", "Decrease") { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); onChange((qty - step).coerceAtLeast(step)) }
+        AnimatedContent(
+            qty, label = "portionQty", modifier = Modifier.widthIn(min = 52.dp),
+            transitionSpec = {
+                if (reduced) EnterTransition.None togetherWith ExitTransition.None
+                else {
+                    val up = targetState > initialState
+                    (slideInVertically(tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) { if (up) it else -it } + fadeIn(tween(Motion.SHORT))) togetherWith
+                        (slideOutVertically(tween(Motion.SHORT, easing = Motion.EmphasizedAccelerate)) { if (up) -it else it } + fadeOut(tween(90)))
+                }
+            },
+        ) { q -> Text(app.unavu.data.fmtQty(q), style = U.t.title, fontWeight = FontWeight.ExtraBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
+        StepBtn("+", "Increase") { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); onChange(qty + step) }
+        Text(label, style = U.t.caption, color = c.ink2, modifier = Modifier.padding(start = 10.dp))
+    }
+}
+
+@Composable
+private fun StepBtn(glyph: String, desc: String, onClick: () -> Unit) {
+    Box(
+        Modifier.size(48.dp).pressScale().clip(CircleShape).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = desc },
+        contentAlignment = Alignment.Center,
+    ) { Box(Modifier.size(34.dp).clip(CircleShape).border(1.5.dp, U.c.line, CircleShape), contentAlignment = Alignment.Center) { Text(glyph, style = U.t.title) } }
 }

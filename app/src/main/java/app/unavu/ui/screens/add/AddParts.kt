@@ -2,6 +2,9 @@ package app.unavu.ui.screens
 
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -68,7 +71,7 @@ internal fun ParsedRow(item: NewItem, onClick: () -> Unit) {
     val summary = food.choiceSummary(item.choices)
     val kcal = food.nutrFor(item.qty, item.unit, item.choices).kcal.roundToInt()
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics(mergeDescendants = true) { role = Role.Button }
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) { role = Role.Button }
             .clickable(onClick = onClick).padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -94,7 +97,7 @@ internal fun ParsedRow(item: NewItem, onClick: () -> Unit) {
 @Composable
 fun AddButton(text: String, enabled: Boolean, success: Boolean = false, onClick: () -> Unit) {
     val c = U.c
-    val bg by androidx.compose.animation.animateColorAsState(if (enabled || success) c.acc else c.acc.copy(alpha = 0.35f), motionTween(), label = "addBg")
+    val bg by animateColorAsState(if (enabled || success) c.acc else c.acc.copy(alpha = 0.35f), motionTween(), label = "addBg")
     val prog = remember { androidx.compose.animation.core.Animatable(0f) }
     val reduced = LocalReducedMotion.current
     LaunchedEffect(success) {
@@ -116,7 +119,7 @@ fun AddButton(text: String, enabled: Boolean, success: Boolean = false, onClick:
         } else {
             AnimatedContent(
                 text, label = "addLabel",
-                transitionSpec = { (fadeIn(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) + slideInVertically(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) { it / 3 }) togetherWith fadeOut(androidx.compose.animation.core.tween(90)) },
+                transitionSpec = { if (reduced) EnterTransition.None togetherWith ExitTransition.None else (fadeIn(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) + slideInVertically(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) { it / 3 }) togetherWith fadeOut(androidx.compose.animation.core.tween(90)) },
             ) { s -> Text(s, style = U.t.body, fontWeight = FontWeight.ExtraBold, color = if (enabled) c.onAcc else c.ink2) }
         }
     }
@@ -134,7 +137,7 @@ fun <T> SlidingSegments(options: List<T>, selected: T, label: @Composable (T) ->
         Row {
             options.forEach { o ->
                 val on = o == selected
-                val col by androidx.compose.animation.animateColorAsState(if (on) c.onAcc else c.ink2, motionTween(), label = "segCol")
+                val col by animateColorAsState(if (on) c.onAcc else c.ink2, motionTween(), label = "segCol")
                 Box(
                     Modifier.size(segW, 44.dp).clip(RoundedCornerShape(50)).selectable(selected = on, role = Role.Tab) { if (!on) onSelect(o) },
                     contentAlignment = Alignment.Center,
@@ -148,8 +151,10 @@ fun <T> SlidingSegments(options: List<T>, selected: T, label: @Composable (T) ->
 fun LiquidTile(emoji: String, name: String, sub: String, on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = U.c
     val t = U.t
+    val fill by animateColorAsState(if (on) c.blueS else c.sf, motionTween(), label = "liqFill")
+    val line by animateColorAsState(if (on) c.blue else c.line, motionTween(), label = "liqLine")
     Column(
-        modifier.edge(if (on) c.blue else c.line, 14.dp, 1.5.dp, seed = name.length).clip(RoundedCornerShape(14.dp)).background(if (on) c.blueS else c.sf)
+        modifier.pressScale().edge(line, 14.dp, 1.5.dp, seed = name.length).clip(RoundedCornerShape(14.dp)).background(fill)
             .semantics(mergeDescendants = true) { role = Role.Button }
             .clickable(onClick = onClick).heightIn(min = 48.dp).padding(top = 12.dp, bottom = 10.dp, start = 4.dp, end = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -166,6 +171,6 @@ fun LiquidTile(emoji: String, name: String, sub: String, on: Boolean, modifier: 
 fun StaggerIn(index: Int, content: @Composable () -> Unit) {
     val reduced = LocalReducedMotion.current
     val p = remember { androidx.compose.animation.core.Animatable(if (reduced) 1f else 0f) }
-    LaunchedEffect(Unit) { p.animateTo(1f, androidx.compose.animation.core.tween(Motion.MEDIUM, delayMillis = index * 40, easing = Motion.EmphasizedDecelerate)) }
+    LaunchedEffect(Unit) { if (!reduced) p.animateTo(1f, androidx.compose.animation.core.tween(Motion.MEDIUM, delayMillis = index * 40, easing = Motion.EmphasizedDecelerate)) }
     Box(Modifier.graphicsLayer { alpha = p.value; translationY = (1f - p.value) * 10.dp.toPx() }) { content() }
 }

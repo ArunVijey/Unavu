@@ -134,7 +134,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = c.bg, dragHandle = null) {
         val enter = remember { androidx.compose.animation.core.Animatable(if (reducedMotion) 1f else 0f) }
-        LaunchedEffect(Unit) { enter.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 300f)) }
+        LaunchedEffect(Unit) { if (!reducedMotion) enter.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 300f)) }
         Column(Modifier.graphicsLayer { translationY = (1f - enter.value) * 28.dp.toPx(); alpha = enter.value.coerceIn(0f, 1f) }.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SlidingSegments(Mode.entries, mode, { stringResource(it.labelRes) }) { m ->

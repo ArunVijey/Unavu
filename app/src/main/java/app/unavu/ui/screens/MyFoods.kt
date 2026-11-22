@@ -57,7 +57,8 @@ import app.unavu.ui.NumberField
 import app.unavu.ui.Page
 import app.unavu.ui.PrimaryButton
 import app.unavu.ui.SecondaryButton
-import app.unavu.ui.SectionLabel
+import app.unavu.ui.EmptyState
+import app.unavu.ui.pressScale
 import app.unavu.ui.Segmented
 import app.unavu.ui.TextField
 import app.unavu.ui.TopBar
@@ -81,24 +82,26 @@ fun MyFoodsScreen() {
     val undo = stringResource(R.string.f_undo)
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "top", contentType = "top") { TopBar(stringResource(R.string.f_myfoods_title), onBack = { nav.pop() }) }
-            item(key = "intro", contentType = "card") {
-                AppCard(Modifier.padding(horizontal = 18.dp), color = c.leafS, border = null) {
+            if (foods.isEmpty()) item(key = "empty-foods", contentType = "empty") {
+                EmptyState("🥘", stringResource(R.string.f_no_foods_yet), stringResource(R.string.f_ate_new_body), stringResource(R.string.f_add_new_food), Modifier.animateItem()) { nav.push(Page.MyFood(null)) }
+            } else item(key = "intro", contentType = "card") {
+                AppCard(Modifier.padding(horizontal = 16.dp), color = c.leafS, border = null) {
                     Text(stringResource(R.string.f_ate_new), style = t.titleS, fontWeight = FontWeight.Bold, color = c.leafInk)
                     Text(stringResource(R.string.f_ate_new_body), style = t.bodyS, color = c.ink2, modifier = Modifier.padding(top = 2.dp))
                     Spacer(Modifier.height(10.dp))
                     PrimaryButton(stringResource(R.string.f_add_new_food)) { nav.push(Page.MyFood(null)) }
                 }
             }
-            item(key = "label", contentType = "label") {
-                Box(Modifier.padding(horizontal = 18.dp)) {
-                    SectionLabel(if (foods.isEmpty()) stringResource(R.string.f_no_foods_yet) else stringResource(R.string.f_your_foods, foods.size))
+            if (foods.isNotEmpty()) item(key = "label", contentType = "label") {
+                Box(Modifier.padding(horizontal = 16.dp)) {
+                    SectionTitle(stringResource(R.string.f_your_foods, foods.size))
                 }
             }
             items(foods, key = { it.id }, contentType = { "food" }) { f ->
                 val x = f.facts!!
-                AppCard(onClick = { nav.push(Page.MyFood(f.id)) }, padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), modifier = Modifier.padding(horizontal = 18.dp).animateItem()) {
+                AppCard(onClick = { nav.push(Page.MyFood(f.id)) }, padding = PaddingValues(horizontal = 16.dp, vertical = 12.dp), modifier = Modifier.padding(horizontal = 16.dp).animateItem()) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Emoji(f.emoji)
                         Column(Modifier.weight(1f)) {
@@ -112,7 +115,7 @@ fun MyFoodsScreen() {
                         val del = stringResource(R.string.f_delete_named, f.name)
                         Text(
                             "🗑", style = t.body,
-                            modifier = Modifier.defaultMinSize(48.dp, 48.dp).clip(CircleShape).semantics { role = Role.Button; contentDescription = del }
+                            modifier = Modifier.defaultMinSize(48.dp, 48.dp).pressScale().clip(CircleShape).semantics { role = Role.Button; contentDescription = del }
                                 .clickable {
                                     val before = store.data.value
                                     store.deleteCustomFood(f.id)
@@ -123,14 +126,14 @@ fun MyFoodsScreen() {
                     }
                 }
             }
-            item(key = "home-label", contentType = "label") { Box(Modifier.padding(horizontal = 18.dp)) { SectionLabel(stringResource(R.string.f_cooked_home)) } }
+            item(key = "home-label", contentType = "label") { Box(Modifier.padding(horizontal = 16.dp)) { SectionTitle(stringResource(R.string.f_cooked_home)) } }
             item(key = "home-card", contentType = "card") {
-                AppCard(onClick = { nav.push(Page.Recipe(null)) }, modifier = Modifier.padding(horizontal = 18.dp)) {
+                AppCard(onClick = { nav.push(Page.Recipe(null)) }, modifier = Modifier.padding(horizontal = 16.dp)) {
                     Text(stringResource(R.string.f_build_recipe_title), style = t.titleS, fontWeight = FontWeight.Bold)
                     Text(stringResource(R.string.f_build_recipe_body), style = t.bodyS, color = c.ink2, modifier = Modifier.padding(top = 2.dp))
                 }
             }
         }
-        Fab(Modifier.align(Alignment.BottomEnd).padding(18.dp)) { nav.push(Page.MyFood(null)) }
+        Fab(Modifier.align(Alignment.BottomEnd).padding(16.dp)) { nav.push(Page.MyFood(null)) }
     }
 }

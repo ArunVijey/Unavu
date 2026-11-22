@@ -59,7 +59,9 @@ import app.unavu.ui.LocalFeedback
 import app.unavu.ui.MealPicker
 import app.unavu.ui.Page
 import app.unavu.ui.SecondaryButton
-import app.unavu.ui.Segmented
+import app.unavu.ui.SlidingSegmented
+import app.unavu.ui.EmptyState
+import app.unavu.ui.pressScale
 import app.unavu.ui.Status
 import app.unavu.ui.StatusBadge
 import app.unavu.ui.TopBar
@@ -90,32 +92,28 @@ fun MealsScreen() {
     val recipes = remember(data.customFoods) { data.customFoods.filter { it.facts == null } }
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "top", contentType = "top") { TopBar(stringResource(R.string.f_meals_title)) }
             item(key = "tabs", contentType = "tabs") {
-                Segmented(listOf(stringResource(R.string.f_tab_combos), stringResource(R.string.f_tab_recipes)), tab, Modifier.padding(horizontal = 18.dp)) { tab = it }
+                SlidingSegmented(listOf(stringResource(R.string.f_tab_combos), stringResource(R.string.f_tab_recipes)), tab, Modifier.padding(horizontal = 16.dp)) { tab = it }
             }
             if (tab == 0) {
                 item(key = "filters", contentType = "filters") {
-                    FlowRow(Modifier.padding(horizontal = 18.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         ChoiceChip(stringResource(R.string.f_filter_all), filter == null) { filterName = null }
                         Meal.entries.forEach { m -> ChoiceChip(m.label, filter == m) { filterName = m.name } }
                     }
                 }
                 if (combos.isEmpty()) {
                     item(key = "empty-combos", contentType = "empty") {
-                        AppCard(Modifier.padding(horizontal = 18.dp)) {
-                            Text(stringResource(R.string.f_no_combos_title), style = t.titleS, fontWeight = FontWeight.Bold)
-                            Text(stringResource(R.string.f_no_combos_body), style = t.bodyS, color = c.ink2, modifier = Modifier.padding(vertical = 6.dp))
-                            SecondaryButton(stringResource(R.string.f_build_combo)) { nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) }
-                        }
+                        EmptyState("⭐", stringResource(R.string.f_no_combos_title), stringResource(R.string.f_no_combos_body), stringResource(R.string.f_build_combo), Modifier.animateItem()) { nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) }
                     }
                 }
                 items(combos, key = { it.id }, contentType = { "combo" }) { cb ->
                     val idx = combos.indexOf(cb)
                     var menu by rememberSaveable(cb.id) { mutableStateOf(false) }
                     val kcal = remember(cb) { cb.items.sumOf { FoodDb.get(it.foodId)?.nutrFor(it.qty, it.unit, it.choices)?.kcal ?: 0.0 }.roundToInt() }
-                    AppCard(onClick = { logComboId = cb.id }, padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = Modifier.padding(horizontal = 18.dp).animateItem()) {
+                    AppCard(onClick = { logComboId = cb.id }, padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = Modifier.padding(horizontal = 16.dp).animateItem()) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Emoji(cb.emoji)
                             Column(Modifier.weight(1f)) {
@@ -131,7 +129,7 @@ fun MealsScreen() {
                                 val more = stringResource(R.string.f_more_options, cb.name)
                                 Text(
                                     "⋮", style = t.title,
-                                    modifier = Modifier.defaultMinSize(48.dp, 48.dp).clip(CircleShape).semantics { role = Role.Button; contentDescription = more }
+                                    modifier = Modifier.defaultMinSize(48.dp, 48.dp).pressScale().clip(CircleShape).semantics { role = Role.Button; contentDescription = more }
                                         .clickable { menu = true }.padding(horizontal = 14.dp, vertical = 10.dp),
                                 )
                                 DropdownMenu(menu, { menu = false }, containerColor = c.sf) {
@@ -152,20 +150,16 @@ fun MealsScreen() {
                 }
             } else {
                 item(key = "add-macros", contentType = "button") {
-                    Box(Modifier.padding(horizontal = 18.dp)) { SecondaryButton(stringResource(R.string.f_add_by_macros)) { nav.push(Page.MyFood(null)) } }
+                    Box(Modifier.padding(horizontal = 16.dp)) { SecondaryButton(stringResource(R.string.f_add_by_macros)) { nav.push(Page.MyFood(null)) } }
                 }
                 if (recipes.isEmpty()) {
                     item(key = "empty-recipes", contentType = "empty") {
-                        AppCard(Modifier.padding(horizontal = 18.dp)) {
-                            Text(stringResource(R.string.f_no_recipes_title), style = t.titleS, fontWeight = FontWeight.Bold)
-                            Text(stringResource(R.string.f_no_recipes_body), style = t.bodyS, color = c.ink2, modifier = Modifier.padding(vertical = 6.dp))
-                            SecondaryButton(stringResource(R.string.f_build_recipe)) { nav.push(Page.Recipe(null)) }
-                        }
+                        EmptyState("🍲", stringResource(R.string.f_no_recipes_title), stringResource(R.string.f_no_recipes_body), stringResource(R.string.f_build_recipe), Modifier.animateItem()) { nav.push(Page.Recipe(null)) }
                     }
                 }
                 items(recipes, key = { it.id }, contentType = { "recipe" }) { r ->
                     val per = remember(r) { FoodDb.get(r.id)?.nutrFor(1.0, r.unitName) }
-                    AppCard(onClick = { nav.push(Page.Recipe(r.id)) }, padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = Modifier.padding(horizontal = 18.dp).animateItem()) {
+                    AppCard(onClick = { nav.push(Page.Recipe(r.id)) }, padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = Modifier.padding(horizontal = 16.dp).animateItem()) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Emoji(r.emoji)
                             Column(Modifier.weight(1f)) {
@@ -179,7 +173,7 @@ fun MealsScreen() {
                             val del = stringResource(R.string.f_delete_named, r.name)
                             Text(
                                 "🗑", style = t.body,
-                                modifier = Modifier.defaultMinSize(48.dp, 48.dp).clip(CircleShape).semantics { role = Role.Button; contentDescription = del }
+                                modifier = Modifier.defaultMinSize(48.dp, 48.dp).pressScale().clip(CircleShape).semantics { role = Role.Button; contentDescription = del }
                                     .clickable {
                                         val before = store.data.value
                                         store.deleteCustomFood(r.id)

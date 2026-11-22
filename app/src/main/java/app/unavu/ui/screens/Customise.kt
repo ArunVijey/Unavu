@@ -49,12 +49,15 @@ import app.unavu.data.unitLabel
 import app.unavu.ui.PrimaryButton
 import app.unavu.ui.SecondaryButton
 import app.unavu.ui.SectionLabel
-import app.unavu.ui.Segmented
+import app.unavu.ui.SlidingSegmented
 import app.unavu.ui.Status
 import app.unavu.ui.StatusBadge
 import app.unavu.ui.Stepper
 import app.unavu.ui.TamilText
 import app.unavu.ui.theme.U
+import app.unavu.ui.theme.motionTween
+import app.unavu.ui.pressScale
+import androidx.compose.animation.animateColorAsState
 import kotlin.math.roundToInt
 
 /** Bottom sheet to customise one item: choices (vegetables, dal, milk, sugar…), oil, amount, unit. */
@@ -113,7 +116,7 @@ fun CustomiseSheet(
             if (food.hasOil) {
                 SectionLabel(stringResource(R.string.f_oil_ghee))
                 val cur = choices[OIL]?.firstOrNull() ?: "usual"
-                Segmented(OIL_LEVELS.map { it.second }, OIL_LEVELS.indexOfFirst { it.first == cur }) { i -> choices = choices + (OIL to listOf(OIL_LEVELS[i].first)) }
+                SlidingSegmented(OIL_LEVELS.map { it.second }, OIL_LEVELS.indexOfFirst { it.first == cur }) { i -> choices = choices + (OIL to listOf(OIL_LEVELS[i].first)) }
             }
 
             SectionLabel(stringResource(R.string.f_how_much))
@@ -151,9 +154,12 @@ private fun qtyText(q: Double, unit: String) = "${app.unavu.data.fmtQty(q)} ${un
 @Composable
 fun ChoiceChip(text: String, on: Boolean, onClick: () -> Unit) {
     val c = U.c
+    val line by animateColorAsState(if (on) c.acc else c.line, motionTween(), label = "chipLine")
+    val fill by animateColorAsState(if (on) c.accS else c.sf, motionTween(), label = "chipFill")
+    val ink by animateColorAsState(if (on) c.accInk else c.ink, motionTween(), label = "chipInk")
     Text(
-        text, style = U.t.label, fontWeight = FontWeight.SemiBold, color = if (on) c.accInk else c.ink,
-        modifier = Modifier.edge(if (on) c.acc else c.line, 50.dp, 1.5.dp, seed = text.length).clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf)
+        text, style = U.t.label, fontWeight = FontWeight.SemiBold, color = ink,
+        modifier = Modifier.pressScale().edge(line, 50.dp, 1.5.dp, seed = text.length).clip(RoundedCornerShape(50)).background(fill)
             .selectable(selected = on, role = Role.Checkbox, onClick = onClick).heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 13.dp),
     )
 }

@@ -1,6 +1,18 @@
 package app.unavu.ui.screens
 
 import app.unavu.ui.theme.edge
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.motionTween
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.pressScale
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.animateContentSize
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.LaunchedEffect
 import app.unavu.ui.EmojiText
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -31,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -71,7 +84,7 @@ import app.unavu.ui.MealPicker
 import app.unavu.ui.Page
 import app.unavu.ui.SearchField
 import app.unavu.ui.SecondaryButton
-import app.unavu.ui.SectionLabel
+import app.unavu.ui.EmptyState
 import app.unavu.ui.Status
 import app.unavu.ui.StatusBadge
 import app.unavu.ui.TopBar
@@ -128,6 +141,7 @@ private fun step(item: NewItem): Double = if (item.unit == "g" || item.unit == "
 fun PlateBuilderScreen(page: Page.Plate) {
     val c = U.c
     val nav = nav
+    val reducedMotion = LocalReducedMotion.current
     val data = LocalData.current
     val store = nav.store
     val existing = page.comboId?.let { id -> data.combos.firstOrNull { it.id == id } }
@@ -155,10 +169,13 @@ fun PlateBuilderScreen(page: Page.Plate) {
     }
     val longDetails = stringResource(app.unavu.R.string.f_hold_details)
     val total = items.fold(Nutr()) { acc, it -> acc + (FoodDb.get(it.foodId)?.nutrFor(it.qty, it.unit, it.choices) ?: Nutr()) }
+    val kcalShown by animateIntAsState(total.kcal.roundToInt(), motionTween(Motion.LONG), label = "plateKcal")
+    var logged by remember { mutableStateOf(false) }
+    LaunchedEffect(logged) { if (logged) { kotlinx.coroutines.delay(if (reducedMotion) 250L else 600L); nav.pop() } }
 
     Column(Modifier.fillMaxSize()) {
         TopBar(if (comboMode) (existing?.let { "Edit combo" } ?: "New combo") else "Build a plate", onBack = { nav.pop() })
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
             if (!comboMode) {
                 MealPicker(meal) { mealName = it.name }
                 Spacer(Modifier.height(10.dp))
@@ -167,15 +184,15 @@ fun PlateBuilderScreen(page: Page.Plate) {
 
             if (query.isNotBlank()) {
                 val results = FoodDb.search(query)
-                SectionLabel(if (results.isEmpty()) "No match. Try another spelling" else "Results · tap to add, hold for details")
+                if (results.isNotEmpty()) SectionTitle("Results · tap to add, hold for details")
                 if (results.isEmpty()) {
-                    SecondaryButton("＋ Add “${query.trim()}” as a new food") { nav.push(Page.MyFood(null, query.trim().replaceFirstChar { it.uppercase() })) }
-                    Spacer(Modifier.height(8.dp))
-                }
-                AppCard(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+                    EmptyState("🔍", "No match for “${query.trim()}”", "Try another spelling, or save it as your own food.", "＋ Add as a new food") {
+                        nav.push(Page.MyFood(null, query.trim().replaceFirstChar { it.uppercase() }))
+                    }
+                } else AppCard(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                     results.forEach { f ->
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics(mergeDescendants = true) { role = Role.Button }.combinedClickable(onClickLabel = null, onLongClickLabel = longDetails, onClick = { addingId = f.id }, onLongClick = { nav.push(Page.FoodDetail(f.id, nav.date.value, meal)) }).padding(vertical = 9.dp),
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) { role = Role.Button }.combinedClickable(onClickLabel = null, onLongClickLabel = longDetails, onClick = { addingId = f.id }, onLongClick = { nav.push(Page.FoodDetail(f.id, nav.date.value, meal)) }).padding(vertical = 9.dp),
                             verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Emoji(f.emoji)
@@ -192,9 +209,9 @@ fun PlateBuilderScreen(page: Page.Plate) {
                     }
                 }
             } else {
-                SectionLabel("Tap to add · tap again for more · hold to customise")
+                SectionTitle("Tap to add · tap again for more · hold to customise")
                 val tiles = tilesFor(data, meal)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(7.dp), verticalArrangement = Arrangement.spacedBy(7.dp), maxItemsInEachRow = 3) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), maxItemsInEachRow = 3) {
                     tiles.forEach { f ->
                         val count = items.firstOrNull { it.foodId == f.id }?.qty
                         Tile(f, count, Modifier.weight(1f), onClick = { tap(f) }, onLong = { addingId = f.id })
@@ -202,19 +219,19 @@ fun PlateBuilderScreen(page: Page.Plate) {
                 }
                 val sides = items.flatMap { PAIRINGS[it.foodId].orEmpty() }.distinct().filter { s -> items.none { it.foodId == s } }.mapNotNull(FoodDb::get)
                 if (sides.isNotEmpty()) {
-                    SectionLabel("Goes well with")
+                    SectionTitle("Goes well with")
                     FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                         sides.take(14).forEach { s -> ChoiceChip("${s.emoji} ${s.name}", false) { tap(s) } }
                     }
                 }
             }
 
-            SectionLabel(if (items.isEmpty()) "Plate is empty" else "On the plate · tap to customise")
+            SectionTitle(if (items.isEmpty()) "Plate is empty" else "On the plate · tap to customise")
             if (items.isNotEmpty()) {
-                AppCard(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
+                AppCard(modifier = Modifier.animateContentSize(), padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                     items.forEachIndexed { i, it ->
                         val f = FoodDb.get(it.foodId) ?: return@forEachIndexed
-                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics(mergeDescendants = true) { role = Role.Button }.clickable { editing = i }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) { role = Role.Button }.clickable { editing = i }.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Emoji(f.emoji)
                             Column(Modifier.weight(1f)) {
                                 Text(f.name, fontWeight = FontWeight.Bold, style = U.t.bodyS)
@@ -227,7 +244,7 @@ fun PlateBuilderScreen(page: Page.Plate) {
                         }
                     }
                 }
-                Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     listOf("Protein" to total.protein, "Carbs" to total.carbs, "Fat" to total.fat, "Fibre" to total.fibre).forEach { (n, v) ->
                         Column(Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(c.sf).border(1.dp, c.line, RoundedCornerShape(12.dp)).padding(8.dp)) {
                             Text("${v.roundToInt()} g", fontWeight = FontWeight.Bold)
@@ -243,7 +260,7 @@ fun PlateBuilderScreen(page: Page.Plate) {
         Column(Modifier.fillMaxWidth().background(c.sf).navigationBarsPadding().padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Plate total", color = c.ink2, modifier = Modifier.weight(1f))
-                Text("${total.kcal.roundToInt()} kcal", fontWeight = FontWeight.ExtraBold, style = U.t.title)
+                Text("$kcalShown kcal", fontWeight = FontWeight.ExtraBold, style = U.t.title)
             }
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -251,12 +268,14 @@ fun PlateBuilderScreen(page: Page.Plate) {
                     AddBtn("⭐ SAVE COMBO", items.isNotEmpty(), Modifier.weight(1f)) { naming = true }
                 } else {
                     Box(Modifier.weight(1f)) { SmallSecondary("⭐ Save") { naming = true } }
-                    AddBtn(if (meal == null) "PICK A MEAL" else "LOG ${meal!!.label.uppercase()}", items.isNotEmpty() && meal != null, Modifier.weight(1.6f)) {
-                        val before = store.data.value
-                        store.logItems(items.toList(), meal!!, nav.date.value, cheat)
-                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
-                        feedback?.show(ctx.getString(app.unavu.R.string.f_added_to, items.mapNotNull { FoodDb.get(it.foodId)?.name }.joinToString(", "), meal.label), ctx.getString(app.unavu.R.string.f_undo)) { store.restoreSnapshot(before) }
-                        nav.pop()
+                    Box(Modifier.weight(1.6f)) {
+                        app.unavu.ui.screens.AddButton(if (meal == null) "PICK A MEAL" else "LOG ${meal!!.label.uppercase()}", items.isNotEmpty() && meal != null, success = logged) {
+                            val before = store.data.value
+                            store.logItems(items.toList(), meal!!, nav.date.value, cheat)
+                            haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
+                            feedback?.show(ctx.getString(app.unavu.R.string.f_added_to, items.mapNotNull { FoodDb.get(it.foodId)?.name }.joinToString(", "), meal.label), ctx.getString(app.unavu.R.string.f_undo)) { store.restoreSnapshot(before) }
+                            logged = true
+                        }
                     }
                 }
             }
@@ -296,22 +315,35 @@ private fun Tile(f: Food, count: Double?, modifier: Modifier, onClick: () -> Uni
     val on = count != null
     val longLabel = stringResource(app.unavu.R.string.f_hold_customise)
     val qtyDesc = stringResource(app.unavu.R.string.f_in_plate_qty, count?.let { fmtQty(it) } ?: "")
+    val line by animateColorAsState(if (on) c.acc else c.line, motionTween(), label = "tileLine")
+    val fill by animateColorAsState(if (on) c.accS else c.sf, motionTween(), label = "tileFill")
+    val disc by animateColorAsState(if (on) c.sf else c.turS, motionTween(), label = "tileDisc")
+    val reduced = LocalReducedMotion.current
+    val badge by androidx.compose.animation.core.animateFloatAsState(
+        if (on) 1f else 0f,
+        if (reduced) androidx.compose.animation.core.snap() else spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "tileBadge",
+    )
+    var lastCount by remember { mutableStateOf(count) }
+    if (count != null) lastCount = count
     Box(modifier) {
         Column(
-            Modifier.fillMaxWidth().edge(if (on) c.acc else c.line, 14.dp, 1.5.dp, seed = f.id.length).clip(RoundedCornerShape(14.dp)).background(if (on) c.accS else c.sf)
+            Modifier.fillMaxWidth().pressScale().edge(line, 14.dp, 1.5.dp, seed = f.id.length).clip(RoundedCornerShape(14.dp)).background(fill)
                 .semantics(mergeDescendants = true) { role = Role.Button; if (count != null) stateDescription = qtyDesc }
                 .combinedClickable(onLongClickLabel = longLabel, onClick = onClick, onLongClick = onLong).heightIn(min = 48.dp).padding(top = 12.dp, bottom = 10.dp, start = 6.dp, end = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Box(Modifier.size(46.dp).clip(CircleShape).background(if (on) c.sf else c.turS), contentAlignment = Alignment.Center) { EmojiText(f.emoji, 24) }
+            Box(Modifier.size(46.dp).clip(CircleShape).background(disc), contentAlignment = Alignment.Center) { EmojiText(f.emoji, 24) }
             Spacer(Modifier.height(6.dp))
             Text(f.name.substringBefore(" ("), fontWeight = FontWeight.Bold, style = U.t.caption, maxLines = 1, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
             val u = f.units.first()
             Text("${f.nutrFor(1.0, u.name).kcal.roundToInt()}/${u.name}", style = U.t.caption, color = c.ink2)
         }
-        if (on) {
-            Box(Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-6).dp).clip(RoundedCornerShape(50)).background(c.acc).padding(horizontal = 7.dp, vertical = 2.dp)) {
-                Text(fmtQty(count!!), color = c.onAcc, style = U.t.caption, fontWeight = FontWeight.ExtraBold)
+        if (badge > 0.01f && lastCount != null) {
+            Box(
+                Modifier.align(Alignment.TopEnd).offset(x = 4.dp, y = (-6).dp).graphicsLayer { scaleX = badge; scaleY = badge; alpha = badge.coerceIn(0f, 1f) }
+                    .clip(RoundedCornerShape(50)).background(c.acc).padding(horizontal = 7.dp, vertical = 2.dp),
+            ) {
+                Text(fmtQty(lastCount!!), color = c.onAcc, style = U.t.caption, fontWeight = FontWeight.ExtraBold)
             }
         }
     }
@@ -327,7 +359,7 @@ fun Emoji(e: String, size: Int = 42) {
 @Composable
 private fun MiniStep(t: String, desc: String, onClick: () -> Unit) {
     val c = U.c
-    Box(Modifier.size(48.dp).clip(CircleShape).semantics { contentDescription = desc; role = Role.Button }.clickable(onClick = onClick).padding(10.dp).border(1.5.dp, c.line, CircleShape), contentAlignment = Alignment.Center) {
+    Box(Modifier.size(48.dp).pressScale().clip(CircleShape).semantics { contentDescription = desc; role = Role.Button }.clickable(onClick = onClick).padding(10.dp).border(1.5.dp, c.line, CircleShape), contentAlignment = Alignment.Center) {
         Text(t, fontWeight = FontWeight.Bold, style = U.t.body)
     }
 }
@@ -347,4 +379,10 @@ fun SmallSecondary(text: String, onClick: () -> Unit) {
     Box(Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(16.dp)).background(c.sf2).clickable(role = Role.Button, onClick = onClick).padding(vertical = 14.dp), contentAlignment = Alignment.Center) {
         Text(text, fontWeight = FontWeight.Bold, style = U.t.bodyS)
     }
+}
+
+/** Section header shared by the plate / meals / foods screens. */
+@Composable
+internal fun SectionTitle(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = U.t.title, modifier = modifier.padding(top = 16.dp, bottom = 8.dp).semantics { heading() })
 }
