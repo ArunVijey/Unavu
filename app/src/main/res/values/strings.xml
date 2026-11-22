@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Unavu</string>
+    <string name="widget_big_desc">Calories left, log food, +1 glass, your usual combos</string>
+    <string name="widget_small_desc">Calories left today</string>
+</resources>

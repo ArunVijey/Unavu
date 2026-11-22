@@ -1,0 +1,22 @@
+# build output
+.gradle/
+.kotlin/
+build/
+*.apk
+*.aab
+
+# machine-specific / secrets (never commit)
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# personal data copied off the phone
+phone-data-backup/
+
+# IDE / misc
+.idea/
+*.iml
+.DS_Store
+tools/__pycache__/
+later/
