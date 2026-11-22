@@ -1,15 +1,16 @@
 # Round 1: shared contract for the 10 parallel agents
 
-Read `docs/audit/round-1.md` (the defect list) and this file before you start. All 10 agents work at the same time, each in its own git worktree, and the auditor merges every branch at the end. To keep that merge clean:
+Read `docs/audit/round-1.md` (the defect list) and this file before you start. **All 10 agents work at the same time in the same checkout, `D:/T3 Code/unavu`, on branch `audit-loop`.** The rules below keep you from breaking each other:
 
-1. **Only edit the files you own** (listed in your task). If you need a change in a file you don't own, don't make it. Write it under "Requests for other owners" in your notes file.
-2. **Code against the shared APIs below by name.** The owner builds the real version. If you need one before it exists in your worktree, put a **minimal stub** in `app/src/main/java/app/unavu/ui/Stubs<YourLetter>.kt` (e.g. `StubsE.kt`) with exactly the same name and signature. The auditor deletes stubs at merge time.
-3. **Strings:** put every user-visible string you move or add in your own file, `app/src/main/res/values/strings_<letter>.xml` (e.g. `strings_e.xml`), and prefix each key with your letter (`e_today_title`). Never edit `strings.xml`.
-4. **Build check (Git Bash):** `export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" && ./gradlew assembleDebug testDebugUnitTest --console=plain` must pass in your worktree before you finish.
-5. Commit on your worktree branch. End each commit message with `Co-Authored-By: GPT-6 Luna <noreply@openai.com>`. Don't push. Don't change the git identity. Don't touch `../signing`.
+1. **Only edit the files you own** (listed in your task). Never edit, revert, reformat, `git checkout`, `git stash` or `git reset` anyone else's files. If you need a change in a file you don't own, write it under "Requests for other owners" in your notes file.
+2. **The shared APIs below already exist as working skeletons** (commit "shared API skeleton"). Code against them by name. Their owners replace the bodies with the full behaviour, but the names and signatures don't change. **Don't create stubs or duplicate declarations.**
+3. **Strings:** put every user-visible string you move or add in your own file, `app/src/main/res/values/strings_<letter>.xml` (e.g. `strings_e.xml`), and prefix every key with your letter (`e_today_title`). Never edit `strings.xml`.
+4. **Building:** Git Bash: `cd "/d/T3 Code/unavu" && export JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" && ./gradlew assembleDebug testDebugUnitTest --console=plain`. Other agents build at the same time, so Gradle may wait on a lock; that's fine. If the build fails **only** in files you don't own (someone is mid-edit), wait a minute and retry. Don't fix their files. **Your own files must compile** before you finish.
+5. **Committing:** commit only your own paths, e.g. `git add <your files> && git commit -m "..." -- <your files>`. Never `git add -A` or `git commit -a`. If `index.lock` exists, wait a few seconds and retry. End each message with `Co-Authored-By: GPT-6 Luna <noreply@openai.com>`. Don't push. Don't change the git identity. Don't touch `../signing`.
 6. Write `docs/audit/notes-<letter>.md`: what you changed, what you couldn't do, and requests for other owners.
 7. Keep the visual identity: palette, fonts, sketch mode (`U.sketch`), drawn icons, turmeric FAB, Tanglish parser. The JSON data format stays backward compatible (only add fields that have defaults). Tooling versions are fixed (AGP 9.2.1, Kotlin 2.3.20, compileSdk 37, Compose BOM 2026.08.00).
-8. Write source files as UTF-8 (PowerShell 5.1 defaults to ANSI, so pass `-Encoding utf8` or use your edit tool).
+8. Write source files as UTF-8 (PowerShell 5.1 defaults to ANSI, so pass `-Encoding utf8` or use your edit tool). Prefer Git Bash.
+9. Searches: stay inside `D:/T3 Code/unavu`. Don't search its parent folders.
 
 ## Shared APIs (names are fixed)
 
@@ -46,9 +47,9 @@ val LocalReducedMotion: ProvidableCompositionLocal<Boolean>  // true when the sy
 ### Feedback / snackbar: owner B (`ui/Feedback.kt`, hosted in MainActivity)
 ```kotlin
 class Feedback { fun show(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) }
-val LocalFeedback: ProvidableCompositionLocal<Feedback>
-// Undo pattern for screens:  val before = store.data.value; store.deleteEntry(id); feedback.show(msg, undoLabel) { store.replaceAll(before) }
-// (owner A makes Store.restoreSnapshot(before) for exactly this; use it)
+val LocalFeedback: ProvidableCompositionLocal<Feedback?>   // use LocalFeedback.current?.show(...)
+// Undo pattern for screens:  val before = store.data.value; store.deleteEntry(id); feedback.show(msg, undoLabel) { store.restoreSnapshot(before) }
+// store.restoreSnapshot(before) exists for exactly this
 ```
 
 ### Store: owner A (`data/Store.kt`)

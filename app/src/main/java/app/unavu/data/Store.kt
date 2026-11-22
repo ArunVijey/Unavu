@@ -48,6 +48,16 @@ class Store private constructor(private val file: File) {
         nextId = (d.entries.maxOfOrNull { it.id } ?: 0L) + 1
     }
 
+    // ---- round-1 skeleton APIs (owner: Agent A fills in the real behaviour) ----
+    private val _loadIssue = MutableStateFlow<LoadIssue?>(null)
+    /** Non-null when the data file was unreadable at start (a copy was kept). */
+    val loadIssue: StateFlow<LoadIssue?> = _loadIssue
+    fun clearLoadIssue() { _loadIssue.value = null }
+    /** Undo: put back an earlier snapshot. */
+    fun restoreSnapshot(snapshot: AppData) = update { snapshot }
+    /** Write pending changes now (called from onStop). */
+    fun flush() { val snap = _data.value; scope.launch { writeLock.withLock { save(snap) } } }
+
     fun exportJson(): String = JSON.encodeToString(AppData.serializer(), _data.value)
 
     private fun load(): AppData = runCatching {
@@ -105,6 +115,8 @@ class Store private constructor(private val file: File) {
         )
     }
 }
+
+data class LoadIssue(val keptCopyPath: String)
 
 // ---------- common actions ----------
 

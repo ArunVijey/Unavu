@@ -52,6 +52,12 @@ data class AppColors(
     val accInk: Color = Color(0xFFF7C600),
     /** Text/icons drawn ON the accent colour. */
     val onAcc: Color = Color(0xFF111111),
+    /** Red text readable on chiS / sf / bg. */
+    val chiInk: Color = chi,
+    /** Blue text readable on blueS / sf / bg. */
+    val blueInk: Color = blue,
+    /** Placeholder text (≥4.5:1 on bg / sf / sf2). */
+    val hint: Color = ink2,
 )
 
 const val DEFAULT_ACCENT = 0xFFF7C600.toInt()
@@ -104,6 +110,8 @@ val LocalColors = staticCompositionLocalOf { LightColors }
 object U {
     val c: AppColors @Composable get() = LocalColors.current
     val sketch: Boolean @Composable get() = LocalSketch.current
+    /** Type roles: `U.t.body`, `U.t.title` … */
+    val t: AppType @Composable get() = currentType
 }
 
 @OptIn(ExperimentalTextApi::class)

@@ -174,7 +174,7 @@ fun ArrowIcon(dir: Arrow, color: Color = U.c.ink, size: Dp = 20.dp) {
 }
 
 @Composable
-fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, contentDescription: String? = null, onClick: () -> Unit) {
     Box(
         modifier.size(40.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = dir.ordinal) else Modifier)
             .clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
@@ -183,7 +183,7 @@ fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, onClick: () -> Unit) 
 }
 
 @Composable
-fun IconCircle(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+fun IconCircle(text: String, modifier: Modifier = Modifier, contentDescription: String? = null, onClick: () -> Unit) {
     Box(
         modifier.size(36.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 18.dp, 1.4.dp, seed = text.length) else Modifier)
             .clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
@@ -293,7 +293,7 @@ fun Divider() {
 }
 
 @Composable
-fun Fab(modifier: Modifier = Modifier, size: Dp = 62.dp, onClick: () -> Unit) {
+fun Fab(modifier: Modifier = Modifier, size: Dp = 62.dp, contentDescription: String? = null, onClick: () -> Unit) {
     val c = U.c
     Box(
         modifier
@@ -365,3 +365,6 @@ fun NavIcon(g: NavGlyph, color: Color, active: Boolean, bg: Color, size: Dp = 26
         }
     }
 }
+
+/** Slight shrink while pressed. Round-1 skeleton (owner: Agent D implements; no-op for now). */
+fun Modifier.pressScale(): Modifier = this
