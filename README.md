@@ -19,6 +19,7 @@ no account, no ads, no tracking. Your data stays on your phone.
 - **Smart target.** Re-estimates how much you burn from your logs and weight trend.
 - **Widgets and Quick Settings tiles**, reminders, daily backup to a folder you choose.
 - Light / dark / pure black themes, accent colour picker, Tamil text throughout.
+- **Sketch style**: a hand-drawn, Excalidraw-like look (Excalifont, sketchy outlines, dotted paper).
 
 ## Install (for friends)
 
@@ -60,6 +61,6 @@ so a specific hotel or brand can differ.
 - A few items not in IFCT (instant coffee, cocoa, condensed milk, honey, bread, sauces, packaged drink powders…)
   from USDA FoodData Central or product labels, marked `custom` in `tools/ingredients.py`.
 - Targets: ICMR-NIN Nutrient Requirements for Indians (2020).
-- Fonts: Google Sans Flex, Inter and Noto Sans Tamil, all under the SIL Open Font License.
+- Fonts: Google Sans Flex, Inter, Noto Sans Tamil and Excalifont (by Excalidraw, used in the Sketch style), all under the SIL Open Font License.
 
 This app is for general information only and is not medical advice.

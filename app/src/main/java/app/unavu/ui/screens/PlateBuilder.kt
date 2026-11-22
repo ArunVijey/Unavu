@@ -1,5 +1,6 @@
 package app.unavu.ui.screens
 
+import app.unavu.ui.theme.edge
 import app.unavu.ui.EmojiText
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -278,8 +279,7 @@ private fun Tile(f: Food, count: Double?, modifier: Modifier, onClick: () -> Uni
     val on = count != null
     Box(modifier) {
         Column(
-            Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(if (on) c.accS else c.sf)
-                .border(1.5.dp, if (on) c.acc else c.line, RoundedCornerShape(14.dp))
+            Modifier.fillMaxWidth().edge(if (on) c.acc else c.line, 14.dp, 1.5.dp, seed = f.id.length).clip(RoundedCornerShape(14.dp)).background(if (on) c.accS else c.sf)
                 .combinedClickable(onClick = onClick, onLongClick = onLong).padding(top = 12.dp, bottom = 10.dp, start = 6.dp, end = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {

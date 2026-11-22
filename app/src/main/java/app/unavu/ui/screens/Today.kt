@@ -1,5 +1,11 @@
 package app.unavu.ui.screens
 
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Rect
+import app.unavu.ui.theme.roughRect
+import app.unavu.ui.theme.roughArc
+import app.unavu.ui.theme.hachure
+import app.unavu.ui.theme.edge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -186,12 +192,39 @@ fun TodayScreen() {
                             Text(" kcal", fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = c.ink2, modifier = Modifier.padding(bottom = 6.dp))
                         }
                     }
-                    Text("$eaten eaten\nof ${t.kcal}", fontSize = 13.sp, color = c.ink2, lineHeight = 18.sp, textAlign = TextAlign.End)
+                    if (U.sketch) {
+                        val frac = (eaten / t.kcal.toFloat()).coerceIn(0f, 1f)
+                        val track = c.ink2.copy(alpha = 0.25f); val ringCol = if (left >= 0) c.acc else c.chi
+                        Box(Modifier.size(92.dp), contentAlignment = Alignment.Center) {
+                            Canvas(Modifier.size(92.dp)) {
+                                val r = size.minDimension / 2 - 7.dp.toPx()
+                                roughArc(track, center, r, 0f, 360f, 3, 7.dp.toPx())
+                                roughArc(ringCol, center, r, -90f, 360f * frac, 7, 7.dp.toPx())
+                            }
+                            Text("${(eaten * 100f / t.kcal).roundToInt()}%", fontSize = 18.sp)
+                        }
+                    } else {
+                        Text("$eaten eaten\nof ${t.kcal}", fontSize = 13.sp, color = c.ink2, lineHeight = 18.sp, textAlign = TextAlign.End)
+                    }
                 }
+                if (U.sketch) Text("$eaten eaten of ${t.kcal}", fontSize = 13.sp, color = c.ink2, modifier = Modifier.padding(top = 2.dp))
                 Spacer(Modifier.height(18.dp))
-                Row(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(8.dp)).background(c.sf2).clickable { budgetLook = true }) {
-                    val parts = Meal.entries.map { m -> (byMeal.getValue(m).total().kcal / t.kcal).toFloat() }
-                    val scale = if (parts.sum() > 1f) 1f / parts.sum() else 1f
+                val parts = Meal.entries.map { m -> (byMeal.getValue(m).total().kcal / t.kcal).toFloat() }
+                val scale = if (parts.sum() > 1f) 1f / parts.sum() else 1f
+                if (U.sketch) {
+                    val outline = c.ink.copy(alpha = 0.8f)
+                    Canvas(Modifier.fillMaxWidth().height(18.dp).clickable { budgetLook = true }) {
+                        val pad = 2.5.dp.toPx()   // hatching stays inside the outline
+                        val inner = Rect(pad, pad, size.width - pad, size.height - pad)
+                        var x = inner.left
+                        parts.forEachIndexed { i, p ->
+                            val w = inner.width * p * scale
+                            if (w > 0f) hachure(colors[i], Rect(x, inner.top, x + w, inner.bottom), seed = i)
+                            x += w
+                        }
+                        roughRect(outline, 6.dp.toPx(), 11, 1.5.dp.toPx())
+                    }
+                } else Row(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(8.dp)).background(c.sf2).clickable { budgetLook = true }) {
                     parts.forEachIndexed { i, p -> if (p > 0f) Box(Modifier.fillMaxHeight().weight(p * scale).background(colors[i])) }
                     val rest = 1f - parts.sum() * scale
                     if (rest > 0.0001f) Spacer(Modifier.weight(rest))
@@ -459,7 +492,10 @@ private fun NutrientChip(d: NutrientDef, have: Double, target: Double, st: Statu
     val c = U.c
     val (bg, fg) = when (st) { Status.OK -> c.leafS to c.leafInk; Status.LOW -> c.turS to c.turInk; else -> c.chiS to c.chi }
     val sym = when (st) { Status.OK -> "✓"; Status.LOW -> "↓"; else -> "↑" }
-    Column(modifier.clip(RoundedCornerShape(14.dp)).background(bg).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp)) {
+    Column(
+        modifier.then(if (U.sketch) Modifier.edge(fg, 12.dp, 1.5.dp, seed = d.key.length) else Modifier)
+            .clip(RoundedCornerShape(14.dp)).background(if (U.sketch) fg.copy(alpha = 0.12f) else bg).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 11.dp),
+    ) {
         Text("$sym ${d.name}", color = fg, fontWeight = FontWeight.Bold, fontSize = 12.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text("${fmtNum(have)}/${fmtNum(target)}", color = fg.copy(alpha = 0.85f), fontWeight = FontWeight.SemiBold, fontSize = 12.sp, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
     }
@@ -480,12 +516,14 @@ private fun WeekStrip(data: AppData, selected: String, onSelect: (String) -> Uni
             val logged = data.entries.any { it.date == ds }
             val future = d.isAfter(todayD)
             Column(
-                Modifier.width(34.dp).clip(RoundedCornerShape(12.dp)).background(if (on) c.ink else Color.Transparent)
+                Modifier.width(34.dp)
+                    .then(if (on && U.sketch) Modifier.edge(c.ink, 10.dp, 1.6.dp, seed = i) else Modifier)
+                    .clip(RoundedCornerShape(12.dp)).background(if (on) (if (U.sketch) c.acc else c.ink) else Color.Transparent)
                     .clickable(enabled = !future) { onSelect(ds) }.padding(vertical = 8.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.ENGLISH), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.bg else c.ink2)
-                Text("${d.dayOfMonth}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (on) c.bg else if (future) c.ink2 else c.ink)
+                Text(d.dayOfWeek.getDisplayName(TextStyle.NARROW, Locale.ENGLISH), fontSize = 10.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) (if (U.sketch) c.onAcc else c.bg) else c.ink2)
+                Text("${d.dayOfMonth}", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = if (on) (if (U.sketch) c.onAcc else c.bg) else if (future) c.ink2 else c.ink)
                 if (data.isCheatDay(ds)) Text("🍕", fontSize = 7.sp)
                 else Box(Modifier.padding(top = 2.dp).size(5.dp).clip(CircleShape).background(if (logged) (if (on) c.bg else c.leaf) else Color.Transparent))
             }

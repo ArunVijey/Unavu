@@ -1,5 +1,6 @@
 package app.unavu.ui.screens
 
+import app.unavu.ui.theme.edge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -146,8 +147,7 @@ fun ChoiceChip(text: String, on: Boolean, onClick: () -> Unit) {
     val c = U.c
     Text(
         text, fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.accInk else c.ink,
-        modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf)
-            .border(1.5.dp, if (on) c.acc else c.line, RoundedCornerShape(50))
+        modifier = Modifier.edge(if (on) c.acc else c.line, 50.dp, 1.5.dp, seed = text.length).clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf)
             .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 7.dp),
     )
 }

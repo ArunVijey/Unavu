@@ -1,5 +1,6 @@
 package app.unavu
 
+import app.unavu.ui.theme.paperDots
 import android.app.Application
 import android.content.Intent
 import android.os.Bundle
@@ -127,7 +128,7 @@ class MainActivity : ComponentActivity() {
             val nav = remember { Nav(store) }
             AppTheme(data.settings) {
                 CompositionLocalProvider(LocalNav provides nav, LocalData provides data) {
-                    Box(Modifier.fillMaxSize().background(U.c.bg)) {
+                    Box(Modifier.fillMaxSize().background(U.c.bg).paperDots(U.c.line)) {
                         if (data.profile == null) Onboarding(store) else Main(nav, pendingAction.value) { pendingAction.value = null }
                     }
                 }
@@ -225,7 +226,7 @@ private fun Main(nav: Nav, action: String?, consumed: () -> Unit) {
         if (page == null) {
             Divider()
             Row(
-                Modifier.fillMaxWidth().background(c.sf).navigationBarsPadding().padding(start = 4.dp, end = 14.dp).height(78.dp),
+                Modifier.fillMaxWidth().background(if (U.sketch) c.bg else c.sf).navigationBarsPadding().padding(start = 4.dp, end = 14.dp).height(78.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Tab.entries.forEach { t ->
@@ -243,7 +244,7 @@ private fun Main(nav: Nav, action: String?, consumed: () -> Unit) {
                         NavIcon(t.glyph, col, on, c.sf)
                         Spacer(Modifier.height(6.dp))
                         Text(
-                            t.label.uppercase(), fontSize = 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = 1.sp, color = col, maxLines = 1,
+                            if (U.sketch) t.label.lowercase() else t.label.uppercase(), fontSize = if (U.sketch) 13.sp else 10.5.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = if (U.sketch) 0.sp else 1.sp, color = col, maxLines = 1,
                         )
                     }
                 }

@@ -1,5 +1,8 @@
 package app.unavu.ui
 
+import androidx.compose.ui.geometry.Offset
+import app.unavu.ui.theme.roughLine
+import app.unavu.ui.theme.edge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -50,12 +53,14 @@ fun AppCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(radius)
+    val sk = U.sketch
     Column(
         modifier
             .fillMaxWidth()
+            .then(if (sk) Modifier.edge(U.c.ink.copy(alpha = 0.75f), radius, 1.6.dp, seed = radius.value.toInt()) else Modifier)
             .clip(shape)
             .background(color)
-            .then(if (border != null) Modifier.border(1.dp, border, shape) else Modifier)
+            .then(if (border != null && !sk) Modifier.border(1.dp, border, shape) else Modifier)
             .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(padding),
         content = content,
@@ -84,7 +89,7 @@ fun Pill(text: String, selected: Boolean, modifier: Modifier = Modifier, onClick
         modifier
             .clip(shape)
             .background(if (selected) c.accS else c.sf)
-            .border(1.5.dp, if (selected) c.acc else c.line, shape)
+            .edge(if (selected) c.acc else c.line, 50.dp, 1.5.dp)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 9.dp),
     ) {
@@ -128,6 +133,7 @@ fun PrimaryButton(
     Box(
         modifier
             .fillMaxWidth()
+            .then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.8f), 16.dp, 1.6.dp, seed = 5) else Modifier)
             .clip(RoundedCornerShape(16.dp))
             .background(if (enabled) color else color.copy(alpha = 0.4f))
             .clickable(enabled = enabled, onClick = onClick)
@@ -170,7 +176,8 @@ fun ArrowIcon(dir: Arrow, color: Color = U.c.ink, size: Dp = 20.dp) {
 @Composable
 fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        modifier.size(40.dp).clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
+        modifier.size(40.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = dir.ordinal) else Modifier)
+            .clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { ArrowIcon(dir) }
 }
@@ -178,7 +185,8 @@ fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, onClick: () -> Unit) 
 @Composable
 fun IconCircle(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        modifier.size(36.dp).clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
+        modifier.size(36.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 18.dp, 1.4.dp, seed = text.length) else Modifier)
+            .clip(CircleShape).background(U.c.sf2).clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { EmojiText(text, 16) }
 }
@@ -277,7 +285,12 @@ fun ListRow(
 }
 
 @Composable
-fun Divider() = Box(Modifier.fillMaxWidth().height(1.dp).background(U.c.line))
+fun Divider() {
+    if (U.sketch) {
+        val col = U.c.ink2.copy(alpha = 0.45f)
+        Canvas(Modifier.fillMaxWidth().height(3.dp)) { roughLine(col, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), (size.width).toInt(), 1.dp.toPx()) }
+    } else Box(Modifier.fillMaxWidth().height(1.dp).background(U.c.line))
+}
 
 @Composable
 fun Fab(modifier: Modifier = Modifier, size: Dp = 62.dp, onClick: () -> Unit) {
@@ -286,6 +299,7 @@ fun Fab(modifier: Modifier = Modifier, size: Dp = 62.dp, onClick: () -> Unit) {
         modifier
             .size(size)
             .shadow(14.dp, CircleShape, ambientColor = c.acc, spotColor = c.acc)
+            .then(if (U.sketch) Modifier.edge(c.onAcc, size / 2, 1.8.dp, seed = 9) else Modifier)
             .clip(CircleShape)
             .background(c.acc)
             .clickable(onClick = onClick),

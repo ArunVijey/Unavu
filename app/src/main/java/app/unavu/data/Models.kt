@@ -24,7 +24,7 @@ enum class Meal(val label: String, val tamil: String, val emoji: String) {
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 @Serializable
-enum class AppFont(val label: String) { GOOGLE_SANS_FLEX("Google Sans Flex"), INTER("Inter") }
+enum class AppFont(val label: String) { GOOGLE_SANS_FLEX("Google Sans Flex"), INTER("Inter"), EXCALIFONT("Excalifont") }
 
 @Serializable
 data class Profile(
@@ -53,6 +53,8 @@ data class Settings(
     val homeChips: List<String> = listOf("carbs", "protein", "fat", "sodium", "fibre", "iron"),
     /** Accent colour (ARGB). Null = the default turmeric yellow. */
     val accent: Int? = null,
+    /** Hand-drawn "Sketch" style (Excalifont + wobbly outlines + dotted paper). */
+    val sketch: Boolean = false,
 )
 
 @Serializable

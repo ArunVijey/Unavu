@@ -1,5 +1,8 @@
 package app.unavu.ui.theme
 
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontSynthesis
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.LocalContentColor
@@ -100,6 +103,7 @@ val LocalColors = staticCompositionLocalOf { LightColors }
 /** Shortcut: `U.c.leaf` */
 object U {
     val c: AppColors @Composable get() = LocalColors.current
+    val sketch: Boolean @Composable get() = LocalSketch.current
 }
 
 @OptIn(ExperimentalTextApi::class)
@@ -111,6 +115,7 @@ private fun variableFamily(res: Int) = FontFamily(
 
 val GoogleSansFlex = variableFamily(R.font.googlesansflex)
 val InterFamily = variableFamily(R.font.inter)
+val ExcalifontFamily = FontFamily(Font(R.font.excalifont))
 val TamilFamily = variableFamily(R.font.notosanstamil)
 
 /**
@@ -142,8 +147,18 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
         settings.amoled -> AmoledColors
         else -> DarkColors
     }.withAccent(Color(settings.accent ?: DEFAULT_ACCENT))
-    val family = if (settings.font == AppFont.INTER) InterFamily else GoogleSansFlex
+    val family = when {
+        settings.sketch || settings.font == AppFont.EXCALIFONT -> ExcalifontFamily
+        settings.font == AppFont.INTER -> InterFamily
+        else -> GoogleSansFlex
+    }
+    val exf = family == ExcalifontFamily
+    // Excalifont is a thin pen: everything is drawn a bit heavier (Android's fake-bold),
+    // a bit larger, and muted text gets more contrast, so it stays easy to read.
+    val synth = FontSynthesis.All
+    val cc = if (exf) c.copy(ink2 = lerp(c.ink2, c.ink, 0.35f)) else c
 
+    val density = LocalDensity.current
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -165,10 +180,13 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
 
     MaterialTheme(colorScheme = scheme, typography = Typography().withFont(family)) {
         CompositionLocalProvider(
-            LocalColors provides c,
+            LocalColors provides cc,
+            LocalDensity provides Density(density.density, density.fontScale * if (exf) 1.14f else 1f),
+            LocalSketch provides settings.sketch,
             LocalContentColor provides c.ink,
             LocalTextStyle provides TextStyle(
-                fontFamily = family, fontSize = 14.sp, color = c.ink, fontFeatureSettings = "tnum",
+                fontFamily = family, fontSize = 14.sp, color = c.ink, fontFeatureSettings = "tnum", fontSynthesis = synth,
+                fontWeight = if (exf) FontWeight.SemiBold else null,
                 // keeps emoji (taller than the Latin font) from being clipped / squished
                 platformStyle = PlatformTextStyle(includeFontPadding = true),
             ),

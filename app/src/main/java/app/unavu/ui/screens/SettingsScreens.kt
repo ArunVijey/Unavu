@@ -229,6 +229,15 @@ fun AppearanceScreen() {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar("Appearance", onBack = { nav.pop() })
         Column(Modifier.padding(horizontal = 18.dp)) {
+            SectionLabel("Style")
+            app.unavu.ui.Segmented(listOf("Clean", "Sketch ✎"), if (s.sketch) 1 else 0) { i ->
+                store.update { d -> d.copy(settings = d.settings.copy(sketch = i == 1)) }
+            }
+            Text(
+                if (s.sketch) "Hand-drawn look: Excalifont, sketchy outlines and dotted paper. Works with light, dark and pure black."
+                else "Sharp, minimal look.",
+                fontSize = 12.sp, color = c.ink2, modifier = Modifier.padding(start = 4.dp, top = 6.dp),
+            )
             SectionLabel("Theme")
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
                 listOf(ThemeMode.SYSTEM to ("System default" to "Follows your phone"), ThemeMode.LIGHT to ("Light" to null), ThemeMode.DARK to ("Dark" to null))
@@ -249,20 +258,21 @@ fun AppearanceScreen() {
             AccentSection()
             SectionLabel("Font")
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(AppFont.GOOGLE_SANS_FLEX to GoogleSansFlex, AppFont.INTER to InterFamily).forEach { (font, family) ->
-                    val on = s.font == font
+                listOf(AppFont.GOOGLE_SANS_FLEX to GoogleSansFlex, AppFont.INTER to InterFamily, AppFont.EXCALIFONT to app.unavu.ui.theme.ExcalifontFamily).forEach { (font, family) ->
+                    val on = if (s.sketch) font == AppFont.EXCALIFONT else s.font == font
                     Column(
                         Modifier.weight(1f).clip(RoundedCornerShape(18.dp)).background(c.sf)
                             .border(if (on) 2.dp else 1.dp, if (on) c.acc else c.line, RoundedCornerShape(18.dp))
                             .clickable { store.update { d -> d.copy(settings = d.settings.copy(font = font)) } }
                             .padding(12.dp),
                     ) {
-                        Text("Aa 638", fontFamily = family, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+                        Text("Aa 638", fontFamily = family, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                         Text(font.label, fontFamily = family, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
-                        Text(if (font == AppFont.GOOGLE_SANS_FLEX) "Default" else "Compact, neutral", fontSize = 10.5.sp, color = c.ink2)
+                        Text(when (font) { AppFont.GOOGLE_SANS_FLEX -> "Default"; AppFont.INTER -> "Compact"; AppFont.EXCALIFONT -> "Hand-drawn" }, fontSize = 10.5.sp, color = c.ink2)
                     }
                 }
             }
+            if (s.sketch) Text("Sketch style always uses Excalifont.", fontSize = 11.sp, color = c.ink2, modifier = Modifier.padding(start = 6.dp, top = 6.dp))
             Text("Tamil text always uses Noto Sans Tamil · தமிழ்", fontSize = 11.sp, color = c.ink2, modifier = Modifier.padding(6.dp))
             Spacer(Modifier.height(24.dp))
         }

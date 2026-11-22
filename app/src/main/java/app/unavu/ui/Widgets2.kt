@@ -1,5 +1,6 @@
 package app.unavu.ui
 
+import app.unavu.ui.theme.edge
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -63,8 +64,7 @@ fun MealPicker(selected: Meal?, modifier: Modifier = Modifier, onSelect: (Meal) 
             val on = m == selected
             Text(
                 "${m.emoji} ${m.label}", fontSize = 13.sp, fontWeight = FontWeight.SemiBold, color = if (on) c.accInk else c.ink,
-                modifier = Modifier.clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf2)
-                    .border(1.5.dp, if (on) c.acc else Color.Transparent, RoundedCornerShape(50))
+                modifier = Modifier.edge(if (on) c.acc else Color.Transparent, 50.dp, 1.5.dp, seed = m.ordinal).clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf2)
                     .clickable { onSelect(m) }.padding(horizontal = 13.dp, vertical = 9.dp),
             )
         }
@@ -89,7 +89,7 @@ fun Stepper(value: Double, step: Double, min: Double = step, modifier: Modifier 
 fun SearchField(value: String, placeholder: String, modifier: Modifier = Modifier, focusModifier: Modifier = Modifier, onChange: (String) -> Unit) {
     val c = U.c
     Row(
-        modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.sf).border(1.5.dp, if (value.isNotEmpty()) c.acc else c.line, RoundedCornerShape(14.dp))
+        modifier.fillMaxWidth().edge(if (value.isNotEmpty()) c.acc else c.line, 14.dp, 1.5.dp, seed = 3).clip(RoundedCornerShape(14.dp)).background(c.sf)
             .padding(horizontal = 12.dp, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -112,7 +112,7 @@ fun SearchField(value: String, placeholder: String, modifier: Modifier = Modifie
 @Composable
 fun NumberField(value: String, label: String, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
     val c = U.c
-    Column(modifier.clip(RoundedCornerShape(14.dp)).background(c.sf).border(1.dp, c.line, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+    Column(modifier.edge(c.line, 14.dp, 1.dp, seed = 4).clip(RoundedCornerShape(14.dp)).background(c.sf).padding(horizontal = 12.dp, vertical = 8.dp)) {
         BasicTextField(
             value, { v -> onChange(v.filter { it.isDigit() || it == '.' }.take(7)) }, singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal), cursorBrush = SolidColor(c.acc),
@@ -125,7 +125,7 @@ fun NumberField(value: String, label: String, modifier: Modifier = Modifier, onC
 @Composable
 fun TextField(value: String, label: String, modifier: Modifier = Modifier, onChange: (String) -> Unit) {
     val c = U.c
-    Column(modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.sf).border(1.dp, c.line, RoundedCornerShape(14.dp)).padding(horizontal = 12.dp, vertical = 8.dp)) {
+    Column(modifier.fillMaxWidth().edge(c.line, 14.dp, 1.dp, seed = 4).clip(RoundedCornerShape(14.dp)).background(c.sf).padding(horizontal = 12.dp, vertical = 8.dp)) {
         Text(label, fontSize = 11.sp, color = c.ink2, fontWeight = FontWeight.SemiBold)
         BasicTextField(
             value, onChange, singleLine = true, cursorBrush = SolidColor(c.acc),

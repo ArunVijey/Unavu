@@ -1,5 +1,6 @@
 package app.unavu.ui.screens
 
+import app.unavu.ui.theme.edge
 import app.unavu.ui.EmojiText
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -321,8 +322,7 @@ fun AddButton(text: String, enabled: Boolean, onClick: () -> Unit) {
 fun LiquidTile(emoji: String, name: String, sub: String, on: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = U.c
     Column(
-        modifier.clip(RoundedCornerShape(14.dp)).background(if (on) c.blueS else c.sf)
-            .border(1.5.dp, if (on) c.blue else c.line, RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(top = 12.dp, bottom = 10.dp, start = 4.dp, end = 4.dp),
+        modifier.edge(if (on) c.blue else c.line, 14.dp, 1.5.dp, seed = name.length).clip(RoundedCornerShape(14.dp)).background(if (on) c.blueS else c.sf).clickable(onClick = onClick).padding(top = 12.dp, bottom = 10.dp, start = 4.dp, end = 4.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         EmojiText(emoji, 24)
