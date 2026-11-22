@@ -1,5 +1,8 @@
 package app.unavu.ui.screens
 
+import app.unavu.data.fmtQty
+import app.unavu.ui.SelectChip
+
 import app.unavu.ui.theme.edge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -149,17 +152,9 @@ fun CustomiseSheet(
     }
 }
 
-private fun qtyText(q: Double, unit: String) = "${app.unavu.data.fmtQty(q)} ${unitLabel(unit, q)}"
+private fun qtyText(q: Double, unit: String) = "${fmtQty(q)} ${unitLabel(unit, q)}"
 
+/** Option chip in the shared selection style (see [SelectChip]). */
 @Composable
-fun ChoiceChip(text: String, on: Boolean, onClick: () -> Unit) {
-    val c = U.c
-    val line by animateColorAsState(if (on) c.acc else c.line, motionTween(), label = "chipLine")
-    val fill by animateColorAsState(if (on) c.accS else c.sf, motionTween(), label = "chipFill")
-    val ink by animateColorAsState(if (on) c.accInk else c.ink, motionTween(), label = "chipInk")
-    Text(
-        text, style = U.t.label, fontWeight = FontWeight.SemiBold, color = ink,
-        modifier = Modifier.pressScale().edge(line, 50.dp, 1.5.dp, seed = text.length).clip(RoundedCornerShape(50)).background(fill)
-            .selectable(selected = on, role = Role.Checkbox, onClick = onClick).heightIn(min = 48.dp).padding(horizontal = 12.dp, vertical = 13.dp),
-    )
-}
+fun ChoiceChip(text: String, on: Boolean, onClick: () -> Unit) =
+    SelectChip(text, on, role = Role.Checkbox, onClick = onClick)

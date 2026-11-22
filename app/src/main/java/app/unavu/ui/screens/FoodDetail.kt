@@ -1,5 +1,15 @@
 package app.unavu.ui.screens
 
+import androidx.compose.ui.platform.LocalResources
+import app.unavu.data.Meal
+import app.unavu.ui.LocalFeedback
+import androidx.compose.ui.platform.LocalHapticFeedback
+import app.unavu.data.unitLabel
+import app.unavu.data.FoodSource
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import app.unavu.R
+import app.unavu.data.fmtQty
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,10 +104,10 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
     var qty by rememberSaveable { mutableStateOf(p?.qty ?: food.defaultQty) }
     var choices by remember { mutableStateOf(food.resolve(p?.choices ?: emptyMap())) }
     var mealName by rememberSaveable { mutableStateOf(page.meal?.name) }
-    val meal = mealName?.let { nm -> app.unavu.data.Meal.entries.firstOrNull { it.name == nm } }
-    val feedback = app.unavu.ui.LocalFeedback.current
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val ctx = androidx.compose.ui.platform.LocalResources.current
+    val meal = mealName?.let { nm -> Meal.entries.firstOrNull { it.name == nm } }
+    val feedback = LocalFeedback.current
+    val haptic = LocalHapticFeedback.current
+    val ctx = LocalResources.current
     var customise by rememberSaveable { mutableStateOf(false) }
     val n = food.nutrFor(qty, unit, choices)
     val t = data.targets()
@@ -143,7 +153,7 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                     "Per 100 ${if (food.liquid) "ml" else "g"}: ${n100.kcal.roundToInt()} kcal · P ${"%.1f".format(n100.protein)} g · C ${"%.1f".format(n100.carbs)} g · F ${"%.1f".format(n100.fat)} g · fibre ${"%.1f".format(n100.fibre)} g",
                     style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 6.dp),
                 )
-                PortionStepper(qty, step = if (unit == "g" || unit == "ml") 10.0 else 0.5, label = "${app.unavu.data.unitLabel(unit, qty)} ≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}") { qty = it }
+                PortionStepper(qty, step = if (unit == "g" || unit == "ml") 10.0 else 0.5, label = "${unitLabel(unit, qty)} ≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}") { qty = it }
             }
             if (t != null) {
                 AppCard(padding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
@@ -173,7 +183,7 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                     }
                 }
                 Text(
-                    if (food.category == "My foods") "Your own values (My foods)." else if (food.source == app.unavu.data.FoodSource.CUSTOM) "Your recipe." else "Calculated from IFCT 2017 (ICMR-NIN) ingredient values; batch and cooked weight are typical home amounts.",
+                    if (food.category == "My foods") "Your own values (My foods)." else if (food.source == FoodSource.CUSTOM) "Your recipe." else "Calculated from IFCT 2017 (ICMR-NIN) ingredient values; batch and cooked weight are typical home amounts.",
                     style = U.t.caption, color = c.ink2, modifier = Modifier.padding(vertical = 6.dp),
                 )
             }
@@ -182,8 +192,8 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
             PrimaryButton(if (meal == null) "Pick a meal above" else "＋ Add to ${meal!!.label}", enabled = meal != null) {
                 val before = nav.store.data.value
                 nav.store.logItems(listOf(NewItem(food.id, qty, unit, choices)), meal!!, nav.date.value, cheat = false)
-                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
-                feedback?.show(ctx.getString(app.unavu.R.string.f_added_to, food.name, meal.label), ctx.getString(app.unavu.R.string.f_undo)) { nav.store.restoreSnapshot(before) }
+                haptic.performHapticFeedback(HapticFeedbackType.Confirm)
+                feedback?.show(ctx.getString(R.string.f_added_to, food.name, meal.label), ctx.getString(R.string.f_undo)) { nav.store.restoreSnapshot(before) }
                 nav.pop()
             }
             Spacer(Modifier.height(24.dp))
@@ -230,9 +240,9 @@ fun MacroDonut(p: Double, cb: Double, f: Double, kcal: Int) {
 private fun PortionStepper(qty: Double, step: Double, label: String, onChange: (Double) -> Unit) {
     val c = U.c
     val reduced = LocalReducedMotion.current
-    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val haptic = LocalHapticFeedback.current
     Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        StepBtn("−", "Decrease") { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); onChange((qty - step).coerceAtLeast(step)) }
+        StepBtn("−", "Decrease") { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onChange((qty - step).coerceAtLeast(step)) }
         AnimatedContent(
             qty, label = "portionQty", modifier = Modifier.widthIn(min = 52.dp),
             transitionSpec = {
@@ -240,11 +250,11 @@ private fun PortionStepper(qty: Double, step: Double, label: String, onChange: (
                 else {
                     val up = targetState > initialState
                     (slideInVertically(tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) { if (up) it else -it } + fadeIn(tween(Motion.SHORT))) togetherWith
-                        (slideOutVertically(tween(Motion.SHORT, easing = Motion.EmphasizedAccelerate)) { if (up) -it else it } + fadeOut(tween(90)))
+                        (slideOutVertically(tween(Motion.SHORT, easing = Motion.EmphasizedAccelerate)) { if (up) -it else it } + fadeOut(tween(Motion.XSHORT)))
                 }
             },
-        ) { q -> Text(app.unavu.data.fmtQty(q), style = U.t.title, fontWeight = FontWeight.ExtraBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
-        StepBtn("+", "Increase") { haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.TextHandleMove); onChange(qty + step) }
+        ) { q -> Text(fmtQty(q), style = U.t.title, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth()) }
+        StepBtn("+", "Increase") { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onChange(qty + step) }
         Text(label, style = U.t.caption, color = c.ink2, modifier = Modifier.padding(start = 10.dp))
     }
 }

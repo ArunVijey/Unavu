@@ -1,5 +1,9 @@
 package app.unavu.ui.screens
 
+import androidx.compose.ui.platform.LocalResources
+import androidx.compose.foundation.shape.RoundedCornerShape
+import app.unavu.data.Store
+
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
@@ -81,7 +85,7 @@ fun MealsScreen() {
     val data = LocalData.current
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
-    val ctx = androidx.compose.ui.platform.LocalResources.current
+    val ctx = LocalResources.current
     var tab by rememberSaveable { mutableStateOf(0) }
     var filterName by rememberSaveable { mutableStateOf<String?>(null) }
     val filter = filterName?.let { n -> Meal.entries.firstOrNull { it.name == n } }
@@ -100,7 +104,8 @@ fun MealsScreen() {
                 SlidingSegmented(listOf(stringResource(R.string.f_tab_combos), stringResource(R.string.f_tab_recipes)), tab, Modifier.padding(horizontal = 16.dp)) { tab = it }
             }
             if (tab == 0) {
-                item(key = "filters", contentType = "filters") {
+                // Filters only make sense once there is something to filter.
+                if (data.combos.isNotEmpty()) item(key = "filters", contentType = "filters") {
                     FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         ChoiceChip(stringResource(R.string.f_filter_all), filter == null) { filterName = null }
                         Meal.entries.forEach { m -> ChoiceChip(m.label, filter == m) { filterName = m.name } }
@@ -108,7 +113,7 @@ fun MealsScreen() {
                 }
                 if (combos.isEmpty()) {
                     item(key = "empty-combos", contentType = "empty") {
-                        EmptyState("⭐", stringResource(R.string.f_no_combos_title), stringResource(R.string.f_no_combos_body), stringResource(R.string.f_build_combo), Modifier.animateItem()) { nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) }
+                        EmptyState("⭐", stringResource(R.string.f_no_combos_title), stringResource(R.string.d_no_combos_body), stringResource(R.string.f_build_combo), Modifier.animateItem()) { nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) }
                     }
                 }
                 items(combos, key = { it.id }, contentType = { "combo" }) { cb ->
@@ -189,7 +194,7 @@ fun MealsScreen() {
             }
         }
         if (if (tab == 0) combos.isNotEmpty() else recipes.isNotEmpty()) {
-            val pillShape = androidx.compose.foundation.shape.RoundedCornerShape(24.dp)
+            val pillShape = RoundedCornerShape(24.dp)
             Text(
                 stringResource(if (tab == 0) R.string.f_build_combo else R.string.f_build_recipe),
                 style = U.t.label, fontWeight = FontWeight.Bold, color = U.c.ink,
@@ -230,7 +235,7 @@ fun MealsScreen() {
     }
 }
 
-private fun swap(store: app.unavu.data.Store, list: List<Combo>, a: Int, b: Int) {
+private fun swap(store: Store, list: List<Combo>, a: Int, b: Int) {
     val reordered = list.toMutableList().apply { add(b, removeAt(a)) }
     store.update { d -> d.copy(combos = d.combos.map { cb -> reordered.indexOfFirst { it.id == cb.id }.takeIf { it >= 0 }?.let { cb.copy(order = it) } ?: cb }) }
 }

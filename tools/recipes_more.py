@@ -132,7 +132,7 @@ MORE = [
       {"popcorn_kernels": 100, "oil": 12, "butter": 8, "salt": 2}, 120, {"cup": 10, "tub": 60}, defq=3),
     D("roasted_peanuts", "Roasted peanuts", "வறுத்த கடலை", "🥜", "Snacks", "peanuts|groundnut|verkadalai|kadalai|roasted peanuts|masala peanuts|boiled peanuts",
       {"groundnut": 100, "salt": 1}, 100, {"handful": 30, "cone": 50}, defq=1),
-    D("kara_kozhukattai", "Kara kozhukattai / pidi kozhukattai", "காரக் கொழுக்கட்டை", "⚪", "Tiffin", "kara kozhukattai|pidi kozhukattai|uppu kozhukattai|ammini kozhukattai",
+    D("kara_kozhukattai", "Kara kozhukattai / pidi kozhukattai", "காரக் கொழுக்கட்டை", "🥟", "Tiffin", "kara kozhukattai|pidi kozhukattai|uppu kozhukattai|ammini kozhukattai",
       tmp(rice_flour=200, coconut=40, chana_dal=10, green_chilli=4, oil=15, salt=4, water=400), 600, {"piece": 40}, defq=3),
     D("sweet_paniyaram", "Sweet paniyaram", "இனிப்பு பணியாரம்", "🟤", "Sweets", "sweet paniyaram|inippu paniyaram|vellai paniyaram|chettinad paniyaram",
       {"rice_parboiled": 150, "urad_dal": 40, "jaggery": 100, "coconut": 30, "cardamom": 1, "oil": 45, "water": 250}, 560, {"piece": 25}, defq=4),

@@ -35,7 +35,7 @@
     <string name="d_load_issue_sub">A copy of the file was kept. Tap to restore from a backup.</string>
     <string name="d_can_still_eat">YOU CAN STILL EAT</string>
     <string name="d_over_target_by">OVER TARGET BY</string>
-    <string name="d_kcal_unit"> kcal</string>
+    <string name="d_kcal_unit">kcal</string>
     <string name="d_eaten_of">%1$d eaten\nof %2$d</string>
     <string name="d_eaten_of_line">%1$d eaten of %2$d</string>
     <string name="d_budget_summary_left">%1$d kilocalories left of %2$d. %3$d eaten. %4$s</string>
@@ -65,10 +65,10 @@
     <string name="d_tip_d_ok">Great day so far. A light dinner will finish it well.</string>
     <string name="d_next_up_low_protein">Protein is low. Add egg, chicken, fish, sundal or dal.</string>
     <string name="d_next_up_tap">Tap to build your %1$s plate.</string>
-    <string name="d_log">+ Log</string>
+    <string name="d_log">Log</string>
     <string name="d_liquids_title">💧 Liquids  %1$s L</string>
     <string name="d_liquids_sub">Water %1$s / %2$s L · drinks %3$d ml</string>
-    <string name="d_plus_glass">+ glass</string>
+    <string name="d_plus_glass">Glass</string>
     <string name="d_plus_glass_desc">Add a glass of water</string>
     <string name="d_glass_added">Added a glass of water</string>
     <string name="d_meal_not_logged">Not logged</string>
@@ -77,7 +77,7 @@
     <string name="d_weight_none">⚖️ No weigh-in yet</string>
     <string name="d_weight_first">Log your first weigh-in</string>
     <string name="d_weight_sub">Trend %1$s kg · last %2$s</string>
-    <string name="d_plus_weighin">+ weigh-in</string>
+    <string name="d_plus_weighin">Weigh-in</string>
     <string name="d_plus_weighin_desc">Log a weigh-in</string>
     <string name="d_week_of">Week of %1$s</string>
     <string name="d_day_logged">%1$s, food logged</string>
@@ -138,4 +138,9 @@
     <string name="d_msg_copied_day">Day copied to today</string>
     <string name="d_msg_copied_meal">%1$s copied to today\'s %2$s</string>
     <string name="d_msg_combo_saved">Combo saved</string>
+    <string name="d_add_to_meal">Add to %1$s</string>
+    <string name="d_nutrient_tile_desc">%1$s %2$s of %3$s %4$s</string>
+    <string name="d_unit_g">grams</string>
+    <string name="d_unit_mg">milligrams</string>
+    <string name="d_no_combos_body">Save a plate you eat often (from a meal’s popup on Today, or tap Build a combo) and log it with one tap next time.</string>
 </resources>

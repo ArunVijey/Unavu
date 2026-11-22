@@ -1,5 +1,7 @@
 package app.unavu.ui.screens
 
+import app.unavu.ui.theme.motionTween
+import app.unavu.ui.theme.motionSpring
 import app.unavu.ui.EmojiText
 import android.os.Build
 import android.view.WindowManager
@@ -93,9 +95,9 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
             contentAlignment = Alignment.Center,
         ) {
             val reduced = LocalReducedMotion.current
-            val scrim by animateFloatAsState(if (shown) 0.35f else 0f, app.unavu.ui.theme.motionTween(Motion.MEDIUM, Motion.Standard), label = "scrim")
+            val scrim by animateFloatAsState(if (shown) 0.35f else 0f, motionTween(Motion.MEDIUM, Motion.Standard), label = "scrim")
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = scrim)))
-            AnimatedVisibility(shown, enter = if (reduced) fadeIn(snap()) else scaleIn(app.unavu.ui.theme.motionSpring(0.8f, Spring.StiffnessMedium), initialScale = 0.86f, transformOrigin = TransformOrigin(0.5f, 0.3f)) + fadeIn(tween(Motion.SHORT))) {
+            AnimatedVisibility(shown, enter = if (reduced) fadeIn(snap()) else scaleIn(motionSpring(0.8f, Spring.StiffnessMedium), initialScale = 0.86f, transformOrigin = TransformOrigin(0.5f, 0.3f)) + fadeIn(tween(Motion.SHORT))) {
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 40.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -141,7 +143,7 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
 }
 
 @Composable
-fun SourceRow(label: String, value: String, valueColor: androidx.compose.ui.graphics.Color = U.c.ink, onRemove: (() -> Unit)? = null) {
+fun SourceRow(label: String, value: String, valueColor: Color = U.c.ink, onRemove: (() -> Unit)? = null) {
     Row(Modifier.fillMaxWidth().padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = U.t.bodyS, modifier = Modifier.weight(1f))
         Text(value, style = U.t.bodyS, fontWeight = FontWeight.Bold, color = valueColor)

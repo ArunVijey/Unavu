@@ -1,5 +1,7 @@
 package app.unavu.ui.screens.today
 
+import app.unavu.data.fmtQty
+import app.unavu.ui.LocalData
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -64,6 +66,9 @@ import app.unavu.data.isCheatDay
 import app.unavu.data.today
 import app.unavu.data.total
 import app.unavu.ui.AppCard
+import app.unavu.ui.AddButton
+import app.unavu.ui.AddTone
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import app.unavu.ui.Arrow
 import app.unavu.ui.ArrowButton
 import app.unavu.ui.LocalFeedback
@@ -81,6 +86,7 @@ import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.TextStyle
 import java.util.Locale
+import java.time.temporal.ChronoUnit
 
 @Composable
 fun Modifier.edgeIfSketch(color: Color, radius: Dp, seed: Int, enabled: Boolean = true): Modifier =
@@ -104,7 +110,7 @@ fun rememberUndo(store: Store): (String, () -> Unit) -> Unit {
 
 fun mealItemText(e: LogEntry): String {
     val f = e.food() ?: return "?"
-    return if (e.unit == "piece" || e.unit == "egg") "${app.unavu.data.fmtQty(e.qty)} ${f.name}" else f.name
+    return if (e.unit == "piece" || e.unit == "egg") "${fmtQty(e.qty)} ${f.name}" else f.name
 }
 
 @Composable
@@ -113,24 +119,28 @@ fun NutrientChip(d: NutrientDef, have: Double, target: Double, st: Status, modif
     val neutral = !logged || have <= 0.0
     val bgT = if (neutral) c.sf2 else when (st) { Status.OK -> c.leafS; Status.LOW -> c.turS; else -> c.chiS }
     val fgT = if (neutral) c.ink2 else when (st) { Status.OK -> c.leafInk; Status.LOW -> c.turInk; else -> c.chiInk }
-    val barT = if (neutral) c.ink2.copy(alpha = 0.35f) else when (st) { Status.OK -> c.leaf; Status.LOW -> c.tur; else -> c.chi }
+    // The bar always carries the status (leaf on track, turmeric low, chilli over a limit) once
+    // anything counts; only the tile fill stays neutral early in the day.
+    val barT = if (have <= 0.0) c.ink2.copy(alpha = 0.35f) else when (st) { Status.OK -> c.leaf; Status.LOW -> c.tur; else -> c.chi }
     val bg by animateColorAsState(bgT, motionTween(Motion.MEDIUM), label = "chipBg")
     val fg by animateColorAsState(fgT, motionTween(Motion.MEDIUM), label = "chipFg")
     val bar by animateColorAsState(barT, motionTween(Motion.MEDIUM), label = "chipBar")
     var armed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { armed = true }
+    val unitWord = when (d.unit) { "g" -> stringResource(R.string.d_unit_g); "mg" -> stringResource(R.string.d_unit_mg); else -> d.unit }
+    val desc = stringResource(R.string.d_nutrient_tile_desc, d.name, fmtNum(have), fmtNum(target), unitWord)
     val frac by animateFloatAsState(if (armed && target > 0) (have / target).toFloat().coerceIn(0f, 1f) else 0f, motionTween(Motion.LONG), label = "chipFrac")
     Column(
         modifier.edgeIfSketch(fg, 12.dp, d.key.length)
             .heightIn(min = 48.dp).pressScale()
             .clip(RoundedCornerShape(14.dp)).background(if (U.sketch) fg.copy(alpha = 0.12f) else bg)
-            .semantics(mergeDescendants = true) {}.clickable(role = Role.Button, onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+            .semantics(mergeDescendants = true) { contentDescription = desc }.clickable(role = Role.Button, onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (!neutral) { Box(Modifier.size(6.dp).clip(CircleShape).background(bar)); Spacer(Modifier.width(5.dp)) }
+        Row(Modifier.clearAndSetSemantics {}, verticalAlignment = Alignment.CenterVertically) {
+            if (have > 0.0) { Box(Modifier.size(6.dp).clip(CircleShape).background(bar)); Spacer(Modifier.width(5.dp)) }
             Text(d.name, color = fg, style = U.t.label, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        Text("${fmtNum(have)}/${fmtNum(target)}", color = fg, style = U.t.caption, fontWeight = FontWeight.SemiBold, maxLines = 1, modifier = Modifier.padding(top = 2.dp))
+        Text("${fmtNum(have)}/${fmtNum(target)} ${d.unit}", color = fg, style = U.t.caption, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp).clearAndSetSemantics {})
         Box(Modifier.padding(top = 6.dp).fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(fg.copy(alpha = 0.15f))) {
             Box(Modifier.fillMaxWidth(frac).fillMaxHeight().clip(RoundedCornerShape(2.dp)).background(bar))
         }
@@ -149,7 +159,7 @@ fun WeekStrip(data: AppData, selected: String, modifier: Modifier = Modifier, on
             Text(stringResource(R.string.d_week_of, "${monday.dayOfMonth} ${monday.month.getDisplayName(TextStyle.SHORT, Locale.ENGLISH)}"), style = U.t.label, color = c.ink2)
             ArrowButton(Arrow.RIGHT) { if (sel.plusWeeks(1) <= todayD.with(DayOfWeek.SUNDAY)) onSelect(minOf(sel.plusWeeks(1), todayD).format(DATE)) }
         }
-        val selIdx = java.time.temporal.ChronoUnit.DAYS.between(monday, sel).toInt().coerceIn(0, 6)
+        val selIdx = ChronoUnit.DAYS.between(monday, sel).toInt().coerceIn(0, 6)
         BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 2.dp).height(58.dp)) {
             val gap = 2.dp
             val cellW = (maxWidth - gap * 6) / 7
@@ -207,7 +217,7 @@ fun NextUpCard(date: String, byMeal: Map<Meal, List<LogEntry>>, left: Int, total
     if (nextNow != null) last[0] = nextNow
     val next = nextNow ?: last[0]
     if (next == null) return
-    val split = app.unavu.ui.LocalData.current.settings.mealSplit
+    val split = LocalData.current.settings.mealSplit
     val budget = (t.kcal * (split.getOrNull(next.ordinal) ?: 0.25)).toInt()
     val tip = when {
         total.kcal <= 0.0 -> stringResource(R.string.d_next_up_tap, next.label.lowercase())
@@ -227,7 +237,7 @@ fun NextUpCard(date: String, byMeal: Map<Meal, List<LogEntry>>, left: Int, total
                         style = U.t.caption, color = c.ink2,
                     )
                 }
-                Text(stringResource(R.string.d_log), color = c.onAcc, style = U.t.label, fontWeight = FontWeight.Bold, modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(c.acc).padding(horizontal = 12.dp, vertical = 9.dp))
+                AddButton(stringResource(R.string.d_log), null, tone = AddTone.FILLED)
             }
         }
     }

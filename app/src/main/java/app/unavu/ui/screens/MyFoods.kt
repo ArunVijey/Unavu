@@ -1,5 +1,6 @@
 package app.unavu.ui.screens
 
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -77,7 +78,7 @@ fun MyFoodsScreen() {
     val data = LocalData.current
     val feedback = LocalFeedback.current
     val haptic = LocalHapticFeedback.current
-    val ctx = androidx.compose.ui.platform.LocalResources.current
+    val ctx = LocalResources.current
     val foods = remember(data.customFoods) { data.customFoods.filter { it.facts != null }.sortedBy { it.name.lowercase() } }
     val undo = stringResource(R.string.f_undo)
 

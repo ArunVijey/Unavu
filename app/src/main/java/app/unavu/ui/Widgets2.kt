@@ -75,31 +75,25 @@ import androidx.compose.ui.unit.sp
 import app.unavu.data.Meal
 import app.unavu.data.fmtQty
 import app.unavu.ui.theme.U
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.PathMeasure
+import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.style.TextAlign
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.theme.Motion
+import kotlin.math.abs
 
-/** Four meal chips. Nothing is picked until the user taps one (no guessing from the clock). */
+/** Four meal chips (plus an optional cheat toggle) in the shared [SelectChip] style. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun MealPicker(selected: Meal?, modifier: Modifier = Modifier, cheatLabel: String? = null, cheat: Boolean = false, onCheat: (() -> Unit)? = null, onSelect: (Meal) -> Unit) {
-    val c = U.c
     FlowRow(modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Meal.entries.forEach { m ->
-            val on = m == selected
-            Box(Modifier.heightIn(min = 48.dp).pressScale().selectable(selected = on, role = Role.RadioButton) { onSelect(m) }, contentAlignment = Alignment.Center) {
-                Text(
-                    "${m.emoji} ${m.label}", style = U.t.label, color = if (on) c.accInk else c.ink,
-                    modifier = Modifier.edge(if (on) c.acc else Color.Transparent, 50.dp, 1.5.dp, seed = m.ordinal).clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf2)
-                        .padding(horizontal = 13.dp, vertical = 9.dp),
-                )
-            }
+            SelectChip("${m.emoji} ${m.label}", m == selected, seed = m.ordinal) { onSelect(m) }
         }
         if (cheatLabel != null && onCheat != null) {
-            Box(Modifier.heightIn(min = 48.dp).pressScale().selectable(selected = cheat, role = Role.Checkbox) { onCheat() }, contentAlignment = Alignment.Center) {
-                Text(
-                    cheatLabel, style = U.t.label, color = if (cheat) c.accInk else c.ink,
-                    modifier = Modifier.edge(if (cheat) c.acc else Color.Transparent, 50.dp, 1.5.dp, seed = 9).clip(RoundedCornerShape(50)).background(if (cheat) c.accS else c.sf2)
-                        .padding(horizontal = 13.dp, vertical = 9.dp),
-                )
-            }
+            SelectChip(cheatLabel, cheat, role = Role.Checkbox, seed = 9) { onCheat() }
         }
     }
 }
@@ -118,7 +112,7 @@ fun Stepper(value: Double, step: Double, min: Double = step, modifier: Modifier 
         ) {
             Box(Modifier.size(34.dp).clip(CircleShape).border(1.5.dp, c.line, CircleShape), contentAlignment = Alignment.Center) { Text("−", style = U.t.title) }
         }
-        Text(fmtQty(value), style = U.t.titleS, fontWeight = FontWeight.ExtraBold, modifier = Modifier.widthIn(min = 36.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(fmtQty(value), style = U.t.titleS, fontWeight = FontWeight.ExtraBold, modifier = Modifier.widthIn(min = 36.dp), textAlign = TextAlign.Center)
         Box(
             Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onChange(value + step) }
                 .semantics { contentDescription = inc },
@@ -133,7 +127,7 @@ fun Stepper(value: Double, step: Double, min: Double = step, modifier: Modifier 
 fun SearchField(value: String, placeholder: String, modifier: Modifier = Modifier, focusModifier: Modifier = Modifier, onChange: (String) -> Unit) {
     val c = U.c
     Row(
-        modifier.fillMaxWidth().edge(if (value.isNotEmpty()) c.acc else c.line, 14.dp, 1.5.dp, seed = 3).clip(RoundedCornerShape(14.dp)).background(c.sf)
+        modifier.fillMaxWidth().edge(if (value.isNotEmpty()) c.accInk else c.line, 14.dp, 1.5.dp, seed = 3).clip(RoundedCornerShape(14.dp)).background(c.sf)
             .padding(start = 12.dp, end = 4.dp).heightIn(min = 48.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -246,18 +240,18 @@ fun BarChart(
 ) {
     val c = U.c
     val maxV = (values + listOfNotNull(target)).maxOrNull()?.takeIf { it > 0 }?.times(1.12) ?: 1.0
-    val reduced = app.unavu.ui.theme.LocalReducedMotion.current
-    val long = app.unavu.ui.theme.Motion.LONG
+    val reduced = LocalReducedMotion.current
+    val long = Motion.LONG
     val stagger = 30
     val totalMs = long + stagger * (values.size - 1).coerceAtLeast(0)
     val prog = remember { Animatable(if (reduced) 1f else 0f) }
-    val progSpec = app.unavu.ui.theme.motionTween<Float>(totalMs, androidx.compose.animation.core.LinearEasing)
+    val progSpec = motionTween<Float>(totalMs, LinearEasing)
     LaunchedEffect(Unit) { if (!reduced) prog.animateTo(1f, progSpec) }
     var sel by remember { mutableStateOf(-1) }
-    val chipA by animateFloatAsState(if (sel >= 0) 1f else 0f, motionTween(app.unavu.ui.theme.Motion.SHORT), label = "barChip")
+    val chipA by animateFloatAsState(if (sel >= 0) 1f else 0f, motionTween(Motion.SHORT), label = "barChip")
     var shownSel by remember { mutableStateOf(0) }
     if (sel >= 0) shownSel = sel
-    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val measurer = rememberTextMeasurer()
     val chipStyle = U.t.caption.copy(fontWeight = FontWeight.Bold, color = c.bg)
     val summary = contentDescription ?: stringResource(
         R.string.d_bar_chart,
@@ -304,7 +298,7 @@ fun BarChart(
         }
         Row(Modifier.fillMaxWidth()) {
             labels.forEachIndexed { i, l ->
-                Text((marks.getOrNull(i)?.let { "$it\n" } ?: "") + l, style = U.t.caption, color = c.ink2, modifier = Modifier.weight(1f), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+                Text((marks.getOrNull(i)?.let { "$it\n" } ?: "") + l, style = U.t.caption, color = c.ink2, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             }
         }
     }
@@ -317,21 +311,21 @@ fun LineChart(points: List<Pair<Float, Double>>, line: List<Pair<Float, Double>>
     val ys = (points + line).map { it.second }
     if (ys.isEmpty()) return
     val minY = ys.min() - 0.4; val maxY = ys.max() + 0.4
-    val reduced = app.unavu.ui.theme.LocalReducedMotion.current
+    val reduced = LocalReducedMotion.current
     val reveal = remember { Animatable(if (reduced) 1f else 0f) }
-    LaunchedEffect(Unit) { if (!reduced) reveal.animateTo(1f, androidx.compose.animation.core.tween(app.unavu.ui.theme.Motion.LONG, easing = app.unavu.ui.theme.Motion.EmphasizedDecelerate)) }
+    LaunchedEffect(Unit) { if (!reduced) reveal.animateTo(1f, tween(Motion.LONG, easing = Motion.EmphasizedDecelerate)) }
     var sel by remember { mutableStateOf(-1) }
-    val chipA by animateFloatAsState(if (sel >= 0) 1f else 0f, motionTween(app.unavu.ui.theme.Motion.SHORT), label = "lineChip")
+    val chipA by animateFloatAsState(if (sel >= 0) 1f else 0f, motionTween(Motion.SHORT), label = "lineChip")
     var shownSel by remember { mutableStateOf(0) }
     if (sel >= 0) shownSel = sel
-    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val measurer = rememberTextMeasurer()
     val chipStyle = U.t.caption.copy(fontWeight = FontWeight.Bold, color = c.bg)
     val summary = contentDescription ?: stringResource(R.string.d_line_chart, points.size)
     Canvas(
         modifier.fillMaxWidth().height(height.dp).semantics { this.contentDescription = summary }.pointerInput(points) {
             detectTapGestures { o ->
                 if (points.isEmpty()) return@detectTapGestures
-                val i = points.indices.minByOrNull { kotlin.math.abs(points[it].first * size.width - o.x) } ?: -1
+                val i = points.indices.minByOrNull { abs(points[it].first * size.width - o.x) } ?: -1
                 sel = if (sel == i) -1 else i
             }
         },
@@ -348,7 +342,7 @@ fun LineChart(points: List<Pair<Float, Double>>, line: List<Pair<Float, Double>>
             line.forEachIndexed { i, p -> val o = px(p); if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
             if (reveal.value >= 1f) drawPath(path, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
             else {
-                val pm = androidx.compose.ui.graphics.PathMeasure(); pm.setPath(path, false)
+                val pm = PathMeasure(); pm.setPath(path, false)
                 val seg = Path(); pm.getSegment(0f, pm.length * reveal.value, seg, true)
                 drawPath(seg, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
             }

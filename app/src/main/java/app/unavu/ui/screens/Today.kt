@@ -21,7 +21,12 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalDensity
 import app.unavu.ui.GlyphCircle
 import app.unavu.ui.LineGlyph
-import app.unavu.ui.PlusRingButton
+import app.unavu.ui.AddButton
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.geometry.Size
+import app.unavu.ui.screens.today.BudgetHero
 import app.unavu.ui.theme.LocalReducedMotion
 import app.unavu.ui.theme.Motion
 import kotlinx.coroutines.delay
@@ -132,9 +137,12 @@ import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/** Fixed height for every meal row on Today (logged or empty). */
+private val MEAL_ROW_HEIGHT = 72.dp
+
 fun mealColors(c: AppColors): List<Color> = listOf(c.tur, c.leaf, c.m3, c.blue)
 
-fun statusOf(d: app.unavu.data.NutrientDef, have: Double, target: Double, pace: Double = 1.0): Status = if (d.limit) {
+fun statusOf(d: NutrientDef, have: Double, target: Double, pace: Double = 1.0): Status = if (d.limit) {
     if (have > target) Status.OVER else Status.OK
 } else {
     if (have >= target * 0.9 * pace.coerceIn(0.0, 1.0)) Status.OK else Status.LOW
@@ -248,10 +256,10 @@ fun TodayScreen() {
 
         LazyColumn(
             Modifier.fillMaxSize()
-                .graphicsLayer(compositingStrategy = androidx.compose.ui.graphics.CompositingStrategy.Offscreen)
+                .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                 .drawWithContent {
                     drawContent()
-                    drawRect(androidx.compose.ui.graphics.Brush.verticalGradient(listOf(Color.Transparent, Color.Black), endY = 12.dp.toPx()), size = androidx.compose.ui.geometry.Size(size.width, 12.dp.toPx()), blendMode = androidx.compose.ui.graphics.BlendMode.DstIn)
+                    drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black), endY = 12.dp.toPx()), size = Size(size.width, 12.dp.toPx()), blendMode = BlendMode.DstIn)
                 },
             contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 110.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
@@ -292,23 +300,45 @@ fun TodayScreen() {
                 Box(Modifier.animateItem().staggerIn(2, seen).then(dayFade)) { NextUpCard(date, byMeal, left, total, t) }
             }
 
+            // ---------- Liquids ----------
+            item(key = "liquids", contentType = "liquids") {
+                val (water, drinks) = data.liquidsMl(date)
+                val goal = data.settings.waterGoalMl
+                val liqSub = stringResource(R.string.d_liquids_sub, fmtL(water), fmtL(goal), drinks)
+                AppCard(Modifier.animateItem().staggerIn(3, seen).then(dayFade)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            Modifier.weight(1f).heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Liquids) },
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text(stringResource(R.string.d_liquids_title, fmtL(water + drinks)), style = U.t.body, fontWeight = FontWeight.Bold)
+                            Text(liqSub, style = U.t.caption, color = c.ink2)
+                        }
+                        AddButton(stringResource(R.string.d_plus_glass), stringResource(R.string.d_plus_glass_desc)) {
+                            undoable(sGlass) { store.addWater(date, 250) }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Track(water / goal.toFloat(), c.blue, height = 8.dp, contentDescription = liqSub)
+                }
+            }
+
             // ---------- Meals ----------
             item(key = "meals", contentType = "meals") {
-                AppCard(Modifier.animateItem().staggerIn(3, seen).then(dayFade).animateContentSize(motionTween()), padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                AppCard(Modifier.animateItem().staggerIn(4, seen).then(dayFade), padding = PaddingValues(horizontal = 18.dp, vertical = 0.dp)) {
                     Meal.entries.forEachIndexed { i, m ->
                         if (i > 0) Divider()
                         val list = byMeal.getValue(m)
                         val kcal = list.total().kcal.roundToInt()
                         val empty = list.isEmpty()
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = if (empty) 56.dp else 64.dp)
-                                .animateContentSize(motionTween())
+                            // One fixed height for logged and empty rows, so nothing jumps when a meal is logged.
+                            Modifier.fillMaxWidth().height(MEAL_ROW_HEIGHT)
                                 .semantics(mergeDescendants = true) {}
                                 .clickable(role = Role.Button) {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     if (empty) nav.push(Page.Plate(m, date)) else mealLook = m.name
-                                }
-                                .padding(vertical = if (empty) 4.dp else 14.dp),
+                                },
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
@@ -323,33 +353,10 @@ fun TodayScreen() {
                                     Text(txt, style = U.t.bodyS, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
                                 }
                             }
-                            if (empty) PlusRingButton(null)
+                            if (empty) AddButton(null, null)
                             else Text("$kcal", style = U.t.titleS, fontWeight = FontWeight.ExtraBold, color = c.ink)
                         }
                     }
-                }
-            }
-
-            // ---------- Liquids ----------
-            item(key = "liquids", contentType = "liquids") {
-                val (water, drinks) = data.liquidsMl(date)
-                val goal = data.settings.waterGoalMl
-                val liqSub = stringResource(R.string.d_liquids_sub, fmtL(water), fmtL(goal), drinks)
-                AppCard(Modifier.animateItem().staggerIn(4, seen).then(dayFade)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(
-                            Modifier.weight(1f).heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Liquids) },
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Text(stringResource(R.string.d_liquids_title, fmtL(water + drinks)), style = U.t.body, fontWeight = FontWeight.Bold)
-                            Text(liqSub, style = U.t.caption, color = c.ink2)
-                        }
-                        ActionChip(stringResource(R.string.d_plus_glass), c.blueInk, c.blueS, stringResource(R.string.d_plus_glass_desc)) {
-                            undoable(sGlass) { store.addWater(date, 250) }
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Track(water / goal.toFloat(), c.blue, height = 8.dp, contentDescription = liqSub)
                 }
             }
 
@@ -370,7 +377,7 @@ fun TodayScreen() {
                                 style = U.t.caption, color = c.ink2,
                             )
                         }
-                        ActionChip(stringResource(R.string.d_plus_weighin), c.leafInk, c.leafS, stringResource(R.string.d_plus_weighin_desc)) {
+                        AddButton(stringResource(R.string.d_plus_weighin), stringResource(R.string.d_plus_weighin_desc)) {
                             nav.quickAdd.value = QuickAddRequest(mode = "WEIGHT")
                         }
                     }
@@ -430,106 +437,3 @@ fun TodayScreen() {
         }
     }
 }
-
-@Composable
-private fun ActionChip(text: String, fg: Color, bg: Color, description: String, onClick: () -> Unit) {
-    val haptic = LocalHapticFeedback.current
-    Box(
-        Modifier.heightIn(min = 48.dp).pressScale().clickable(role = Role.Button) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() }.semantics { contentDescription = description },
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text, color = fg, style = U.t.label, fontWeight = FontWeight.Bold,
-            modifier = Modifier.clip(RoundedCornerShape(50)).background(bg).padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun BudgetHero(
-    modifier: Modifier, kcal: Int, eaten: Int, left: Int, byMeal: Map<Meal, List<LogEntry>>, colors: List<Color>,
-    total: app.unavu.data.Nutr, tg: app.unavu.data.Targets, homeChips: List<String>, onBudget: () -> Unit, onChip: (NutrientDef) -> Unit,
-) {
-    val c = U.c
-    var armed by remember { mutableStateOf(false) }
-    LaunchedEffect(Unit) { armed = true }
-    val shownLeft by animateIntAsState(if (armed) abs(left) else 0, motionTween(Motion.LONG), label = "left")
-    val grow by animateFloatAsState(if (armed) 1f else 0f, motionTween(Motion.LONG), label = "grow")
-    val parts = Meal.entries.map { m -> (byMeal.getValue(m).total().kcal / kcal).toFloat() * grow }
-    val scale = if (parts.sum() > 1f) 1f / parts.sum() else 1f
-    val mealKcal = Meal.entries.map { m -> byMeal.getValue(m).total().kcal.roundToInt() }
-    val breakdown = Meal.entries.mapIndexed { i, m -> stringResource(R.string.d_meal_kcal, m.label, mealKcal[i]) }.joinToString(" ")
-    val summary = if (left >= 0) stringResource(R.string.d_budget_summary_left, left, kcal, eaten, breakdown)
-    else stringResource(R.string.d_budget_summary_over, -left, kcal, eaten, breakdown)
-    val openDesc = stringResource(R.string.d_budget_open)
-
-    AppCard(modifier) {
-        Row(Modifier.semantics(mergeDescendants = true) { contentDescription = summary }, verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(if (left >= 0) R.string.d_can_still_eat else R.string.d_over_target_by), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2, letterSpacing = 0.8.sp)
-                Row(Modifier.padding(top = 4.dp)) {
-                    val big = U.t.display
-                    Text("$shownLeft", style = big.copy(fontSize = big.fontSize * 1.5f, lineHeight = big.lineHeight * 1.5f), color = if (left >= 0) c.ink else c.chiInk, modifier = Modifier.alignByBaseline())
-                    Text(stringResource(R.string.d_kcal_unit), style = U.t.bodyS, fontWeight = FontWeight.SemiBold, color = c.ink2, modifier = Modifier.alignByBaseline())
-                }
-            }
-            if (U.sketch) {
-                val frac = (eaten / kcal.toFloat()).coerceIn(0f, 1f)
-                val track = c.ink2.copy(alpha = 0.25f); val ringCol = if (left >= 0) c.acc else c.chi
-                Box(Modifier.size(92.dp), contentAlignment = Alignment.Center) {
-                    Canvas(Modifier.size(92.dp)) {
-                        val r = size.minDimension / 2 - 7.dp.toPx()
-                        roughArc(track, center, r, 0f, 360f, 3, 7.dp.toPx())
-                        roughArc(ringCol, center, r, -90f, 360f * frac, 7, 7.dp.toPx())
-                    }
-                    Text("${(eaten * 100f / kcal).roundToInt()}%", style = U.t.title)
-                }
-            } else {
-                Text(stringResource(R.string.d_eaten_of_line, eaten, kcal), style = U.t.label, color = c.ink2, textAlign = TextAlign.End, modifier = Modifier.padding(bottom = 8.dp))
-            }
-        }
-        if (U.sketch) Text(stringResource(R.string.d_eaten_of_line, eaten, kcal), style = U.t.label, color = c.ink2, modifier = Modifier.padding(top = 2.dp).clearSem())
-        Spacer(Modifier.height(8.dp))
-        Box(
-            Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(role = Role.Button, onClickLabel = openDesc, onClick = onBudget),
-            contentAlignment = Alignment.Center,
-        ) {
-            if (U.sketch) {
-                val outline = c.ink.copy(alpha = 0.8f)
-                Canvas(Modifier.fillMaxWidth().height(18.dp)) {
-                    val pad = 2.5.dp.toPx()
-                    val inner = Rect(pad, pad, size.width - pad, size.height - pad)
-                    var x = inner.left
-                    parts.forEachIndexed { i, p ->
-                        val w = inner.width * p * scale
-                        if (w > 0f) hachure(colors[i], Rect(x, inner.top, x + w, inner.bottom), seed = i)
-                        x += w
-                    }
-                    roughRect(outline, 6.dp.toPx(), 11, 1.5.dp.toPx())
-                }
-            } else Row(Modifier.fillMaxWidth().height(14.dp).clip(RoundedCornerShape(8.dp)).background(c.sf2)) {
-                parts.forEachIndexed { i, p -> if (p > 0f) Box(Modifier.fillMaxHeight().weight(p * scale).background(colors[i])) }
-                val rest = 1f - parts.sum() * scale
-                if (rest > 0.0001f) Spacer(Modifier.weight(rest))
-            }
-        }
-        AnimatedVisibility(eaten > 0) {
-            Row(Modifier.clearSem().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Meal.entries.forEachIndexed { i, m -> LegendDot(colors[i], m.label) }
-            }
-        }
-        Spacer(Modifier.height(14.dp))
-        val chips = homeChips.mapNotNull { k -> NUTRIENTS.firstOrNull { it.key == k } }
-        chips.chunked(3).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 10.dp)) {
-                row.forEach { d ->
-                    val have = d.value(total); val target = d.target(tg)
-                    NutrientChip(d, have, target, statusOf(d, have, target, eaten / kcal.toDouble()), Modifier.weight(1f), logged = eaten >= kcal * 0.3) { onChip(d) }
-                }
-                repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
-            }
-        }
-    }
-}
-
-private fun Modifier.clearSem(): Modifier = this.semantics { }
