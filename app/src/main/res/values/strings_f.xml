@@ -56,4 +56,36 @@
     <string name="f_oil_ghee">Oil / ghee</string>
     <string name="f_how_much">How much</string>
     <string name="f_remove">Remove</string>
+    <!-- Meals -->
+    <string name="f_meals_title">Meals</string>
+    <string name="f_tab_combos">Saved combos</string>
+    <string name="f_tab_recipes">My recipes</string>
+    <string name="f_filter_all">All</string>
+    <string name="f_no_combos_title">No combos yet</string>
+    <string name="f_no_combos_body">Save a plate you eat often (from a meal's popup on Today, or tap + here) and log it with one tap next time.</string>
+    <string name="f_build_combo">Build a combo</string>
+    <string name="f_no_recipes_title">No recipes yet</string>
+    <string name="f_no_recipes_body">Build a dish from its ingredients (e.g. Amma's puli kuzhambu). It's calculated from IFCT values and appears in search and typing like any other food.</string>
+    <string name="f_build_recipe">Build a recipe</string>
+    <string name="f_add_by_macros">＋ Add a food by its calories / protein / fat</string>
+    <string name="f_used_times">used %1$d×</string>
+    <string name="f_more_options">More options for %1$s</string>
+    <string name="f_edit">✏️ Edit</string>
+    <string name="f_move_up">↑ Move up</string>
+    <string name="f_move_down">↓ Move down</string>
+    <string name="f_delete">🗑 Delete</string>
+    <string name="f_delete_named">Delete %1$s</string>
+    <string name="f_log_combo_title">Log “%1$s”</string>
+    <string name="f_which_meal_q">Which meal?</string>
+    <string name="f_log">Log</string>
+    <string name="f_cancel">Cancel</string>
+    <string name="f_combo_logged">Logged %1$s to %2$s</string>
+    <string name="f_combo_deleted">Deleted combo %1$s</string>
+    <string name="f_recipe_deleted">Deleted recipe %1$s</string>
+    <string name="f_recipe_meta">%1$s · 1 %2$s = %3$d %4$s</string>
+    <plurals name="f_ingredients">
+        <item quantity="one">%d ingredient</item>
+        <item quantity="other">%d ingredients</item>
+    </plurals>
+    <string name="f_kcal_plain">%1$d kcal</string>
 </resources>
