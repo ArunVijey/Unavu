@@ -1,5 +1,6 @@
 package app.unavu.data
 
+import androidx.compose.runtime.Immutable
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -27,6 +28,7 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 enum class AppFont(val label: String) { GOOGLE_SANS_FLEX("Google Sans Flex"), INTER("Inter"), EXCALIFONT("Excalifont") }
 
 @Serializable
+@Immutable
 data class Profile(
     val male: Boolean = true,
     val age: Int = 28,
@@ -40,6 +42,7 @@ data class Profile(
 )
 
 @Serializable
+@Immutable
 data class Settings(
     val theme: ThemeMode = ThemeMode.SYSTEM,
     val amoled: Boolean = false,
@@ -58,6 +61,7 @@ data class Settings(
 )
 
 @Serializable
+@Immutable
 data class LogEntry(
     val id: Long,
     /** yyyy-MM-dd */
@@ -75,13 +79,16 @@ data class LogEntry(
 
 /** The last portion + choices used for a food; pre-filled the next time it is logged. */
 @Serializable
+@Immutable
 data class Portion(val qty: Double, val unit: String, val choices: Map<String, List<String>> = emptyMap())
 
 @Serializable
+@Immutable
 data class WeightEntry(val date: String, val kg: Double, val waistCm: Double? = null)
 
 /** A dish the user built from ingredients ("Amma's puli kuzhambu"). */
 @Serializable
+@Immutable
 data class CustomFood(
     val id: String,
     val name: String,
@@ -99,6 +106,7 @@ data class CustomFood(
 
 /** Nutrition for one serving, typed in by the user (from a pack label, a menu, or a guess). */
 @Serializable
+@Immutable
 data class Facts(
     val kcal: Double,
     val protein: Double = 0.0,
@@ -114,10 +122,12 @@ data class Facts(
 )
 
 @Serializable
+@Immutable
 data class ComboItem(val foodId: String, val qty: Double, val unit: String, val choices: Map<String, List<String>> = emptyMap())
 
 /** A saved plate ("My usual lunch"). */
 @Serializable
+@Immutable
 data class Combo(
     val id: String,
     val name: String,
@@ -129,6 +139,7 @@ data class Combo(
 )
 
 @Serializable
+@Immutable
 data class BackupSettings(
     /** content:// tree URI the user picked (persisted permission). */
     val folderUri: String? = null,
@@ -145,6 +156,7 @@ data class BackupSettings(
 enum class SmartMode { AUTO, ASK, MANUAL }
 
 @Serializable
+@Immutable
 data class SmartTarget(
     val mode: SmartMode = SmartMode.ASK,
     /** Used when mode = MANUAL, or when the user overrides. */
@@ -159,9 +171,11 @@ data class SmartTarget(
 )
 
 @Serializable
+@Immutable
 data class Reminder(val id: String, val label: String, val hour: Int, val minute: Int, val on: Boolean)
 
 @Serializable
+@Immutable
 data class AppData(
     val version: Int = 2,
     val profile: Profile? = null,
@@ -179,4 +193,7 @@ data class AppData(
     val reminders: List<Reminder> = emptyList(),
     /** Days with notes ("Cousin's wedding"). */
     val dayNotes: Map<String, String> = emptyMap(),
-)
+) {
+    /** Per-instance cached index (not serialized). */
+    internal val entriesByDate: Map<String, List<LogEntry>> by lazy(LazyThreadSafetyMode.PUBLICATION) { entries.groupBy { it.date } }
+}

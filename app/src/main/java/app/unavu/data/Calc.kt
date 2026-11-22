@@ -63,7 +63,11 @@ fun LogEntry.food(): Food? = FoodDb.get(foodId)
 fun LogEntry.nutr(): Nutr = food()?.nutrFor(qty, unit, choices) ?: Nutr()
 fun LogEntry.grams(): Double = (food()?.unit(unit)?.grams ?: 0.0) * qty
 
-fun AppData.entriesOn(date: String) = entries.filter { it.date == date }
+fun AppData.entriesOn(date: String): List<LogEntry> = entriesByDate[date] ?: emptyList()
+
+/** Entries with from <= date <= to (ISO dates compare correctly as strings), ordered by date. */
+fun AppData.entriesBetween(from: String, to: String): List<LogEntry> =
+    if (from > to) emptyList() else entriesByDate.filterKeys { it >= from && it <= to }.toSortedMap().values.flatten()
 
 fun List<LogEntry>.total(): Nutr = fold(Nutr()) { acc, e -> acc + e.nutr() }
 
