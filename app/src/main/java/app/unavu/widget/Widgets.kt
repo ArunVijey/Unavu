@@ -36,6 +36,9 @@ import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
+import androidx.glance.semantics.contentDescription
+import androidx.glance.semantics.semantics
+import app.unavu.R
 import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
@@ -54,21 +57,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
+// Contrast on BG: INK about 14:1, INK2 about 6.4:1 (both above 4.5:1); text on CHIP is INK.
 private val BG = ColorProvider(Color(0xFF1F1D1A))
 private val CHIP = ColorProvider(Color(0xFF2B2824))
 private val INK = ColorProvider(Color(0xFFF2EEE6))
 private val INK2 = ColorProvider(Color(0xFFA39E93))
 private val LEAF = ColorProvider(Color(0xFF4FAE76))
 
-private data class Snapshot(val left: Int, val target: Int, val eaten: Int, val protein: Int, val proteinT: Int, val liquidsL: Double, val combos: List<Pair<String, String>>)
+private data class Snapshot(
+    val hasProfile: Boolean, val left: Int, val target: Int, val eaten: Int, val protein: Int, val proteinT: Int,
+    val liquidsL: Double, val combos: List<Pair<String, String>>,
+)
 
 private fun snapshot(d: AppData): Snapshot {
     val t = d.targets()
     val n = d.entriesOn(today()).total()
     val (w, dr) = d.liquidsMl(today())
     val combos = d.combos.sortedByDescending { it.uses }.take(2).map { it.id to "${it.emoji} ${it.name}" }
-    return Snapshot(((t?.kcal ?: 0) - n.kcal).roundToInt(), t?.kcal ?: 0, n.kcal.roundToInt(), n.protein.roundToInt(), t?.protein ?: 0, (w + dr) / 1000.0, combos)
+    return Snapshot(t != null, ((t?.kcal ?: 0) - n.kcal).roundToInt(), t?.kcal ?: 0, n.kcal.roundToInt(), n.protein.roundToInt(), t?.protein ?: 0, (w + dr) / 1000.0, combos)
 }
+
+/** Never throws: an unreadable store shows the "no profile yet" state instead of a broken widget. */
+private fun safeSnapshot(context: Context): Snapshot =
+    runCatching { snapshot(Store.get(context).data.value) }.getOrElse { snapshot(AppData()) }
 
 private val ACTION_KEY = ActionParameters.Key<String>(MainActivity.EXTRA_ACTION)
 
@@ -81,46 +92,65 @@ private fun openIntent(context: Context, action: String) =
 
 class AddWaterAction : ActionCallback {
     override suspend fun onAction(context: Context, glanceId: GlanceId, parameters: ActionParameters) {
-        Store.get(context).addWater(today(), 250)
+        runCatching { Store.get(context).addWater(today(), 250) }
         Widgets.refresh(context)
     }
 }
 
+/** At least 48dp tall so it is an easy tap target; described for TalkBack. */
 @Composable
-private fun Pill(text: String, modifier: GlanceModifier) {
-    Box(modifier.background(CHIP).cornerRadius(12.dp).padding(horizontal = 10.dp, vertical = 8.dp)) {
+private fun Pill(text: String, description: String, modifier: GlanceModifier) {
+    Box(
+        modifier.height(48.dp).background(CHIP).cornerRadius(12.dp).padding(horizontal = 10.dp).semantics { contentDescription = description },
+        contentAlignment = Alignment.Center,
+    ) {
         Text(text, style = TextStyle(color = INK, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
     }
 }
 
+private fun summary(context: Context, s: Snapshot): String =
+    if (!s.hasProfile) context.getString(R.string.a_widget_no_profile_desc)
+    else context.getString(
+        if (s.left >= 0) R.string.a_widget_summary else R.string.a_widget_summary_over,
+        kotlin.math.abs(s.left), s.protein, s.proteinT, "%.1f".format(s.liquidsL),
+    )
+
 class BigWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val s = snapshot(Store.get(context).data.value)
+        val s = safeSnapshot(context)
         provideContent {
-            Column(GlanceModifier.fillMaxSize().background(BG).cornerRadius(24.dp).padding(14.dp).clickable(actionStartActivity<MainActivity>(actionParam(context, "today")))) {
-                Text(if (s.left >= 0) "CAN STILL EAT" else "OVER BY", style = TextStyle(color = INK2, fontSize = 10.sp, fontWeight = FontWeight.Bold))
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text("${kotlin.math.abs(s.left)}", style = TextStyle(color = INK, fontSize = 30.sp, fontWeight = FontWeight.Bold))
-                    Spacer(GlanceModifier.width(8.dp))
-                    Text("P ${s.protein}/${s.proteinT} · 💧 ${"%.1f".format(s.liquidsL)} L", style = TextStyle(color = INK2, fontSize = 11.sp))
+            val root = GlanceModifier.fillMaxSize().background(BG).cornerRadius(24.dp).padding(14.dp)
+                .clickable(actionStartActivity<MainActivity>(actionParam(context, "today")))
+            if (!s.hasProfile) {
+                Column(root.semantics { contentDescription = summary(context, s) }) {
+                    Text(context.getString(R.string.a_widget_no_profile), style = TextStyle(color = INK, fontSize = 14.sp, fontWeight = FontWeight.Bold))
                 }
-                Spacer(GlanceModifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = if (s.target > 0) (s.eaten / s.target.toFloat()).coerceIn(0f, 1f) else 0f,
-                    modifier = GlanceModifier.fillMaxWidth().height(8.dp), color = LEAF, backgroundColor = CHIP,
-                )
-                Spacer(GlanceModifier.height(8.dp))
-                Row(GlanceModifier.fillMaxWidth()) {
-                    Pill("＋ Log food", GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "add"))))
-                    Spacer(GlanceModifier.width(6.dp))
-                    Pill("💧 +1 glass", GlanceModifier.defaultWeight().clickable(actionRunCallback<AddWaterAction>()))
-                }
-                if (s.combos.isNotEmpty()) {
+            } else {
+                Column(root.semantics { contentDescription = summary(context, s) }) {
+                    Text(context.getString(if (s.left >= 0) R.string.a_widget_still_eat else R.string.a_widget_over_by), style = TextStyle(color = INK2, fontSize = 12.sp, fontWeight = FontWeight.Bold))
+                    Row(verticalAlignment = Alignment.Bottom) {
+                        Text("${kotlin.math.abs(s.left)}", style = TextStyle(color = INK, fontSize = 30.sp, fontWeight = FontWeight.Bold))
+                        Spacer(GlanceModifier.width(8.dp))
+                        Text("P ${s.protein}/${s.proteinT} · 💧 ${"%.1f".format(s.liquidsL)} L", style = TextStyle(color = INK2, fontSize = 12.sp))
+                    }
                     Spacer(GlanceModifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = if (s.target > 0) (s.eaten / s.target.toFloat()).coerceIn(0f, 1f) else 0f,
+                        modifier = GlanceModifier.fillMaxWidth().height(8.dp), color = LEAF, backgroundColor = CHIP,
+                    )
+                    Spacer(GlanceModifier.height(8.dp))
                     Row(GlanceModifier.fillMaxWidth()) {
-                        s.combos.forEachIndexed { i, (cid, label) ->
-                            if (i > 0) Spacer(GlanceModifier.width(6.dp))
-                            Pill(label, GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "combo:$cid"))))
+                        Pill(context.getString(R.string.a_widget_log_food), context.getString(R.string.a_widget_log_food_desc), GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "add"))))
+                        Spacer(GlanceModifier.width(6.dp))
+                        Pill(context.getString(R.string.a_widget_water), context.getString(R.string.a_widget_water_desc), GlanceModifier.defaultWeight().clickable(actionRunCallback<AddWaterAction>()))
+                    }
+                    if (s.combos.isNotEmpty()) {
+                        Spacer(GlanceModifier.height(6.dp))
+                        Row(GlanceModifier.fillMaxWidth()) {
+                            s.combos.forEachIndexed { i, (cid, label) ->
+                                if (i > 0) Spacer(GlanceModifier.width(6.dp))
+                                Pill(label, context.getString(R.string.a_widget_combo_desc, label), GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "combo:$cid"))))
+                            }
                         }
                     }
                 }
@@ -131,16 +161,23 @@ class BigWidget : GlanceAppWidget() {
 
 class SmallWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
-        val s = snapshot(Store.get(context).data.value)
+        val s = safeSnapshot(context)
         provideContent {
-            Column(GlanceModifier.fillMaxSize().background(BG).cornerRadius(22.dp).padding(12.dp).clickable(actionStartActivity<MainActivity>(actionParam(context, "add")))) {
-                Text(if (s.left >= 0) "LEFT" else "OVER", style = TextStyle(color = INK2, fontSize = 10.sp, fontWeight = FontWeight.Bold))
-                Text("${kotlin.math.abs(s.left)}", style = TextStyle(color = INK, fontSize = 26.sp, fontWeight = FontWeight.Bold))
-                Spacer(GlanceModifier.height(6.dp))
-                LinearProgressIndicator(
-                    progress = if (s.target > 0) (s.eaten / s.target.toFloat()).coerceIn(0f, 1f) else 0f,
-                    modifier = GlanceModifier.fillMaxWidth().height(6.dp), color = LEAF, backgroundColor = CHIP,
-                )
+            val root = GlanceModifier.fillMaxSize().background(BG).cornerRadius(22.dp).padding(12.dp)
+                .clickable(actionStartActivity<MainActivity>(actionParam(context, if (s.hasProfile) "add" else "today")))
+                .semantics { contentDescription = summary(context, s) }
+            if (!s.hasProfile) {
+                Column(root) { Text(context.getString(R.string.a_widget_no_profile), style = TextStyle(color = INK, fontSize = 12.sp, fontWeight = FontWeight.Bold)) }
+            } else {
+                Column(root) {
+                    Text(context.getString(if (s.left >= 0) R.string.a_widget_left else R.string.a_widget_over), style = TextStyle(color = INK2, fontSize = 12.sp, fontWeight = FontWeight.Bold))
+                    Text("${kotlin.math.abs(s.left)}", style = TextStyle(color = INK, fontSize = 26.sp, fontWeight = FontWeight.Bold))
+                    Spacer(GlanceModifier.height(6.dp))
+                    LinearProgressIndicator(
+                        progress = if (s.target > 0) (s.eaten / s.target.toFloat()).coerceIn(0f, 1f) else 0f,
+                        modifier = GlanceModifier.fillMaxWidth().height(6.dp), color = LEAF, backgroundColor = CHIP,
+                    )
+                }
             }
         }
     }
@@ -151,11 +188,12 @@ class SmallWidgetReceiver : GlanceAppWidgetReceiver() { override val glanceAppWi
 
 object Widgets {
     fun refresh(context: Context) {
+        val app = context.applicationContext
         CoroutineScope(Dispatchers.Default).launch {
             runCatching {
-                val m = GlanceAppWidgetManager(context)
-                if (m.getGlanceIds(BigWidget::class.java).isNotEmpty()) BigWidget().updateAll(context)
-                if (m.getGlanceIds(SmallWidget::class.java).isNotEmpty()) SmallWidget().updateAll(context)
+                val m = GlanceAppWidgetManager(app)
+                if (m.getGlanceIds(BigWidget::class.java).isNotEmpty()) BigWidget().updateAll(app)
+                if (m.getGlanceIds(SmallWidget::class.java).isNotEmpty()) SmallWidget().updateAll(app)
             }
         }
     }
@@ -165,30 +203,46 @@ object Widgets {
 
 class WaterTile : TileService() {
     override fun onStartListening() {
-        val (w, _) = Store.get(this).data.value.liquidsMl(today())
-        qsTile?.apply { state = Tile.STATE_ACTIVE; label = "+1 glass"; if (Build.VERSION.SDK_INT >= 29) subtitle = "${"%.1f".format(w / 1000.0)} L today"; updateTile() }
+        val w = runCatching { Store.get(this).data.value.liquidsMl(today()).first }.getOrDefault(0)
+        val litres = "%.1f".format(w / 1000.0)
+        qsTile?.apply {
+            state = Tile.STATE_ACTIVE
+            label = getString(R.string.a_tile_water)
+            if (Build.VERSION.SDK_INT >= 29) subtitle = getString(R.string.a_tile_water_sub, litres)
+            if (Build.VERSION.SDK_INT >= 30) stateDescription = getString(R.string.a_tile_water_state, litres)
+            updateTile()
+        }
     }
 
     override fun onClick() {
-        Store.get(this).addWater(today(), 250)
-        Widgets.refresh(this)
-        onStartListening()
+        // from the lock screen this waits until the user unlocks
+        unlockAndRun {
+            runCatching { Store.get(this).addWater(today(), 250) }
+            Widgets.refresh(this)
+            onStartListening()
+        }
     }
 }
 
 class QuickAddTile : TileService() {
     override fun onStartListening() {
-        qsTile?.apply { state = Tile.STATE_ACTIVE; label = "Log food"; updateTile() }
+        qsTile?.apply {
+            state = Tile.STATE_ACTIVE
+            label = getString(R.string.a_tile_add)
+            if (Build.VERSION.SDK_INT >= 30) stateDescription = getString(R.string.a_tile_add_state)
+            updateTile()
+        }
     }
 
     override fun onClick() {
-        val intent = openIntent(this, "add")
-        if (Build.VERSION.SDK_INT >= 34) {
-            startActivityAndCollapse(PendingIntent.getActivity(this, 7, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
-        } else {
-            @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
-            startActivityAndCollapse(intent)
+        unlockAndRun {
+            val intent = openIntent(this, "add")
+            if (Build.VERSION.SDK_INT >= 34) {
+                startActivityAndCollapse(PendingIntent.getActivity(this, 7, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT))
+            } else {
+                @Suppress("DEPRECATION", "StartActivityAndCollapseDeprecated")
+                startActivityAndCollapse(intent)
+            }
         }
     }
 }
-
