@@ -12,7 +12,9 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
@@ -205,14 +207,17 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        SideEffect {
-            val window = (view.context as Activity).window
-            @Suppress("DEPRECATION")
-            window.navigationBarColor = c.sf.toArgb()
-            WindowCompat.getInsetsController(window, view).apply {
-                isAppearanceLightStatusBars = !dark
-                isAppearanceLightNavigationBars = !dark
-            }
+        // enableEdgeToEdge owns the bar icon style; re-apply it from the APP theme (not the system one)
+        val navArgb = c.sf.toArgb()
+        DisposableEffect(dark, navArgb) {
+            val activity = view.context as? androidx.activity.ComponentActivity
+            activity?.enableEdgeToEdge(
+                statusBarStyle = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
+                else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+                navigationBarStyle = if (dark) SystemBarStyle.dark(navArgb)
+                else SystemBarStyle.light(navArgb, navArgb),
+            )
+            onDispose { }
         }
     }
 

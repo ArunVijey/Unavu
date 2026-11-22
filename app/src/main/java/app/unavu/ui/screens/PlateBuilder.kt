@@ -9,7 +9,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateIntAsState
-import androidx.compose.animation.core.spring
+import app.unavu.ui.theme.motionSpring
 import androidx.compose.animation.animateContentSize
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.LaunchedEffect
@@ -321,7 +321,7 @@ private fun Tile(f: Food, count: Double?, modifier: Modifier, onClick: () -> Uni
     val reduced = LocalReducedMotion.current
     val badge by androidx.compose.animation.core.animateFloatAsState(
         if (on) 1f else 0f,
-        if (reduced) androidx.compose.animation.core.snap() else spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium), label = "tileBadge",
+        motionSpring(Spring.DampingRatioMediumBouncy, Spring.StiffnessMedium), label = "tileBadge",
     )
     var lastCount by remember { mutableStateOf(count) }
     if (count != null) lastCount = count

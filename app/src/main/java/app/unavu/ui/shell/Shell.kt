@@ -3,6 +3,19 @@ package app.unavu.ui.shell
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsTopHeight
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
@@ -136,13 +149,28 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
     ActionEffect(nav, action, consumed)
 
     // predictive back: the system shows the back preview; we pop when it commits
+    var backProgress by remember { mutableFloatStateOf(0f) }
     PredictiveBackHandler(enabled = page != null || tab != Tab.TODAY) { progress ->
-        progress.collect { }
+        try {
+            progress.collect { backProgress = it.progress }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            backProgress = 0f // gesture cancelled: spring back
+            throw e
+        }
+        backProgress = 0f
         if (!nav.pop()) nav.tab.value = Tab.TODAY
     }
 
+    Box(Modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().statusBarsPadding()) {
-        Box(Modifier.weight(1f)) {
+        Box(
+            Modifier.weight(1f).graphicsLayer {
+                if (!reduced && backProgress > 0f) {
+                    val s = 1f - 0.1f * backProgress
+                    scaleX = s; scaleY = s; translationX = backProgress * 24.dp.toPx()
+                }
+            },
+        ) {
             val slidePx = with(androidx.compose.ui.platform.LocalDensity.current) { 36.dp.roundToPx() }
             AnimatedContent(
                 targetState = Dest(page, tab, nav.stack.size),
@@ -193,14 +221,24 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
             // snackbars sit just above the bottom bar
             SnackbarHost(feedback.host, Modifier.align(Alignment.BottomCenter).padding(horizontal = 12.dp, vertical = 8.dp)) { data ->
                 val c = U.c
-                Snackbar(
-                    data, shape = RoundedCornerShape(14.dp), containerColor = c.sf, contentColor = c.ink, actionColor = c.accInk,
-                    modifier = Modifier.border(1.dp, c.line, RoundedCornerShape(14.dp)),
-                )
+                val shape = RoundedCornerShape(14.dp)
+                // the border lives on a clipped wrapper so only one outline is drawn
+                Box(Modifier.clip(shape).border(1.dp, c.line, shape)) {
+                    Snackbar(data, shape = shape, containerColor = c.sf, contentColor = c.ink, actionColor = c.accInk)
+                }
             }
         }
-        if (page == null) BottomBar(tab, onTab = { nav.tab.value = it }, onAdd = { nav.quickAdd.value = QuickAddRequest() }, addOpen = nav.quickAdd.value != null)
-        else Box(Modifier.navigationBarsPadding())
+        AnimatedVisibility(
+            visible = page == null,
+            enter = if (reduced) EnterTransition.None else slideInVertically(tween(Motion.MEDIUM, easing = Motion.EmphasizedDecelerate)) { it } + fadeIn(tween(Motion.MEDIUM)),
+            exit = if (reduced) ExitTransition.None else slideOutVertically(tween(Motion.SHORT, easing = Motion.EmphasizedAccelerate)) { it } + fadeOut(tween(Motion.SHORT)),
+        ) {
+            BottomBar(tab, onTab = { nav.tab.value = it }, onAdd = { nav.quickAdd.value = QuickAddRequest() }, addOpen = nav.quickAdd.value != null)
+        }
+        if (page != null) Box(Modifier.navigationBarsPadding())
+    }
+    // status-bar scrim: scrolled content never shows under the clock and battery
+    Box(Modifier.align(Alignment.TopStart).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(U.c.bg))
     }
 
     nav.quickAdd.value?.let { req -> QuickAddSheet(req) { nav.quickAdd.value = null } }

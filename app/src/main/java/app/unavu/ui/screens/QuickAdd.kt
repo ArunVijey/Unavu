@@ -87,6 +87,17 @@ import app.unavu.ui.nav
 import app.unavu.ui.theme.U
 import kotlin.math.roundToInt
 
+private fun mealByClock(): Meal {
+    val now = java.time.LocalTime.now()
+    val mins = now.hour * 60 + now.minute
+    return when {
+        mins < 11 * 60 -> Meal.BREAKFAST
+        mins < 15 * 60 + 30 -> Meal.LUNCH
+        mins < 18 * 60 + 30 -> Meal.SNACKS
+        else -> Meal.DINNER
+    }
+}
+
 private enum class Mode(val labelRes: Int) { FOOD(R.string.f_mode_food), LIQUID(R.string.f_mode_liquid), WEIGHT(R.string.f_mode_weight) }
 
 /** The + sheet: mode tabs, type it like you say it, parsed preview, pick the meal, add. */
@@ -107,7 +118,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     var modeName by rememberSaveable { mutableStateOf(request.mode) }
     val mode = runCatching { Mode.valueOf(modeName) }.getOrDefault(Mode.FOOD)
     var text by rememberSaveable { mutableStateOf("") }
-    var mealName by rememberSaveable { mutableStateOf(request.meal?.name) }
+    var mealName by rememberSaveable { mutableStateOf<String?>(request.meal?.name ?: mealByClock().name) }
     val meal: Meal? = mealName?.let { n -> Meal.entries.firstOrNull { it.name == n } }
     var cheat by rememberSaveable { mutableStateOf(false) }
     var waterMl by rememberSaveable { mutableIntStateOf(0) }
@@ -126,22 +137,28 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val typed: List<Pair<String, NewItem>> = parsed.items.mapIndexed { i, it -> "$i:${it.food.id}".let { k -> k to (overrides[k] ?: it.toNew()) } }
     val all: List<Pair<String, NewItem>> = typed + comboItems.mapIndexed { i, it -> "combo$i" to it }
     val needsMeal = all.isNotEmpty()
-    val totalKcal = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal ?: 0.0 }.roundToInt()
+    // total of the displayed (rounded) lines so the rows always add up to it
+    val totalKcal = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal?.roundToInt() ?: 0 }
     var done by remember { mutableStateOf(false) }
     val closeAfter: () -> Unit = { done = true }
-    LaunchedEffect(done) { if (done) { kotlinx.coroutines.delay(550); onDismiss() } }
+    var dismissed by remember { mutableStateOf(false) }
+    val dismissOnce: () -> Unit = { if (!dismissed) { dismissed = true; onDismiss() } }
+    LaunchedEffect(done) {
+        if (done && !dismissed) {
+            kotlinx.coroutines.delay(250) // let the success tick land, then slide the sheet away
+            if (!dismissed) { runCatching { sheet.hide() }; dismissOnce() }
+        }
+    }
     val kcalShown by androidx.compose.animation.core.animateIntAsState(totalKcal, motionTween(Motion.LONG), label = "kcalCount")
 
-    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = c.bg, dragHandle = null) {
-        val enter = remember { androidx.compose.animation.core.Animatable(if (reducedMotion) 1f else 0f) }
-        LaunchedEffect(Unit) { if (!reducedMotion) enter.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 300f)) }
-        Column(Modifier.graphicsLayer { translationY = (1f - enter.value) * 28.dp.toPx(); alpha = enter.value.coerceIn(0f, 1f) }.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
+    ModalBottomSheet(onDismissRequest = dismissOnce, sheetState = sheet, containerColor = c.bg, dragHandle = null) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SlidingSegments(Mode.entries, mode, { stringResource(it.labelRes) }) { m ->
                     modeName = m.name; text = ""; overrides.clear(); comboItems = emptyList()
                 }
                 Spacer(Modifier.weight(1f))
-                ArrowButton(Arrow.CLOSE, contentDescription = stringResource(R.string.f_close), onClick = onDismiss)
+                ArrowButton(Arrow.CLOSE, contentDescription = stringResource(R.string.f_close), onClick = dismissOnce)
             }
 
             // big natural-language field
@@ -150,7 +167,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                 if (text.isEmpty()) {
                     Text(
                         stringResource(when (mode) { Mode.FOOD -> R.string.f_hint_food; Mode.LIQUID -> R.string.f_hint_liquid; Mode.WEIGHT -> R.string.f_hint_weight }),
-                        style = t.headline, color = c.hint,
+                        style = t.headline, color = c.hint.copy(alpha = 0.5f),
                     )
                 }
                 BasicTextField(

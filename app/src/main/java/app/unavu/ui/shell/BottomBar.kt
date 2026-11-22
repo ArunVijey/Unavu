@@ -80,7 +80,7 @@ fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolea
                 val ind by animateFloatAsState(if (on) 1f else 0f, motionTween(), label = "tabIndicator")
                 Column(
                     Modifier.weight(1f).heightIn(min = 64.dp).selectable(selected = on, role = Role.Tab) {
-                        if (!on) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onTab(t) }
+                        if (!on) { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); onTab(t) }
                     },
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.Center,
@@ -88,7 +88,7 @@ fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolea
                     // M3-style pill behind the icon, growing from the centre
                     Box(Modifier.width(56.dp).height(32.dp), contentAlignment = Alignment.Center) {
                         Box(
-                            Modifier.fillMaxSize().graphicsLayer { scaleX = ind; alpha = ind }
+                            Modifier.fillMaxSize().graphicsLayer { val s = 0.6f + 0.4f * ind; scaleX = s; scaleY = s; alpha = ind }
                                 .clip(RoundedCornerShape(16.dp)).background(c.accS),
                         )
                         NavIcon(t.glyph, col, on, c.accS)
