@@ -1,7 +1,5 @@
 package app.unavu.ui.theme
 
-import androidx.compose.ui.unit.Density
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontSynthesis
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -9,6 +7,7 @@ import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -62,30 +61,40 @@ data class AppColors(
 
 const val DEFAULT_ACCENT = 0xFFF7C600.toInt()
 
-/** Fill in the accent tokens from one picked colour, keeping text readable on both themes. */
+/** WCAG 2.x contrast ratio between two opaque colours (1..21). */
+fun contrast(a: Color, b: Color): Float {
+    val la = a.luminance(); val lb = b.luminance()
+    val hi = maxOf(la, lb); val lo = minOf(la, lb)
+    return (hi + 0.05f) / (lo + 0.05f)
+}
+
+private val InkDark = Color(0xFF111111)
+
+/** Fill in the accent tokens from one picked colour, keeping text readable on both themes (>= 4.5:1). */
 fun AppColors.withAccent(a: Color): AppColors {
-    val lum = a.luminance()
-    val ink = if (dark) {
-        if (lum < 0.18f) lerp(a, Color.White, 0.5f) else a
-    } else {
-        if (lum > 0.3f) lerp(a, Color.Black, 0.5f) else a
+    // text on the accent: whichever of near-black / white has the better real contrast
+    val onAcc = if (contrast(a, InkDark) >= contrast(a, Color.White)) InkDark else Color.White
+    val accS = lerp(sf, a, if (dark) 0.22f else 0.16f)
+    // accent-coloured text: push towards white (dark) or black (light) until it passes on bg, sf and accS
+    val target = if (dark) Color.White else Color.Black
+    var ink = a
+    var t = 0f
+    while (t < 1f && (contrast(ink, bg) < 4.5f || contrast(ink, sf) < 4.5f || contrast(ink, accS) < 4.5f)) {
+        t += 0.04f
+        ink = lerp(a, target, t.coerceAtMost(1f))
     }
-    return copy(
-        acc = a,
-        accS = lerp(sf, a, if (dark) 0.22f else 0.16f),
-        accInk = ink,
-        onAcc = if (lum > 0.42f) Color(0xFF111111) else Color.White,
-    )
+    return copy(acc = a, accS = accS, accInk = ink, onAcc = onAcc)
 }
 
 val LightColors = AppColors(
     bg = Color(0xFFFBF8F2), sf = Color(0xFFFFFFFF), sf2 = Color(0xFFF1ECE1), line = Color(0xFFECE6DA),
     ink = Color(0xFF1C1B18), ink2 = Color(0xFF6B675E),
-    leaf = Color(0xFF2F7D4F), leafS = Color(0xFFE3F1E8), leafInk = Color(0xFF2F7D4F),
-    tur = Color(0xFFE8A317), turS = Color(0xFFFDF1D6), turInk = Color(0xFF9A6A00),
+    leaf = Color(0xFF2F7D4F), leafS = Color(0xFFE3F1E8), leafInk = Color(0xFF2C764B),
+    tur = Color(0xFFE8A317), turS = Color(0xFFFDF1D6), turInk = Color(0xFF8D6100),
     chi = Color(0xFFD64545), chiS = Color(0xFFFBE3E3),
     blue = Color(0xFF4A6FA5), blueS = Color(0xFFE5ECF6),
     m3 = Color(0xFFC9733A), scrim = Color(0x8CF0ECE4), dark = false,
+    chiInk = Color(0xFFB83B3B), blueInk = Color(0xFF476BA0), hint = Color(0xFF6B675E),
 )
 
 val DarkColors = AppColors(
@@ -96,12 +105,14 @@ val DarkColors = AppColors(
     chi = Color(0xFFF06B6B), chiS = Color(0xFF3D2020),
     blue = Color(0xFF7C9DD1), blueS = Color(0xFF1F2A3B),
     m3 = Color(0xFFE08B55), scrim = Color(0x8C0A0A09), dark = true,
+    chiInk = Color(0xFFF06B6B), blueInk = Color(0xFF7C9DD1), hint = Color(0xFFA39E93),
 )
 
 val AmoledColors = DarkColors.copy(
     bg = Color(0xFF000000), sf = Color(0xFF0D0D0C), sf2 = Color(0xFF1A1917), line = Color(0xFF242320),
     ink2 = Color(0xFF9C978C), leafS = Color(0xFF132519), turS = Color(0xFF2A210D),
     chiS = Color(0xFF2E1616), blueS = Color(0xFF151E2B), scrim = Color(0x99000000),
+    hint = Color(0xFF9C978C),
 )
 
 val LocalColors = staticCompositionLocalOf { LightColors }
@@ -132,16 +143,39 @@ val TamilFamily = variableFamily(R.font.notosanstamil)
  */
 val Tnum: TextStyle @Composable get() = LocalTextStyle.current
 
-private fun Typography.withFont(f: FontFamily) = Typography(
-    displayLarge = displayLarge.copy(fontFamily = f), displayMedium = displayMedium.copy(fontFamily = f),
-    displaySmall = displaySmall.copy(fontFamily = f), headlineLarge = headlineLarge.copy(fontFamily = f),
-    headlineMedium = headlineMedium.copy(fontFamily = f), headlineSmall = headlineSmall.copy(fontFamily = f),
-    titleLarge = titleLarge.copy(fontFamily = f), titleMedium = titleMedium.copy(fontFamily = f),
-    titleSmall = titleSmall.copy(fontFamily = f), bodyLarge = bodyLarge.copy(fontFamily = f),
-    bodyMedium = bodyMedium.copy(fontFamily = f), bodySmall = bodySmall.copy(fontFamily = f),
-    labelLarge = labelLarge.copy(fontFamily = f), labelMedium = labelMedium.copy(fontFamily = f),
-    labelSmall = labelSmall.copy(fontFamily = f),
+/** Material typography mapped from our roles so any stock M3 component matches the app. */
+private fun AppType.toTypography() = Typography(
+    displayLarge = display, displayMedium = display, displaySmall = headline,
+    headlineLarge = headline, headlineMedium = headline, headlineSmall = title,
+    titleLarge = title, titleMedium = titleS, titleSmall = titleS,
+    bodyLarge = body, bodyMedium = bodyS, bodySmall = caption,
+    labelLarge = label, labelMedium = label, labelSmall = caption,
 )
+
+private fun colorScheme(c: AppColors) =
+    if (c.dark) darkColorScheme(
+        primary = c.acc, onPrimary = c.onAcc, primaryContainer = c.accS, onPrimaryContainer = c.accInk,
+        secondary = c.tur, onSecondary = c.ink, secondaryContainer = c.turS, onSecondaryContainer = c.turInk,
+        tertiary = c.leaf, onTertiary = Color.White, tertiaryContainer = c.leafS, onTertiaryContainer = c.leafInk,
+        background = c.bg, onBackground = c.ink, surface = c.sf, onSurface = c.ink,
+        surfaceVariant = c.sf2, onSurfaceVariant = c.ink2, surfaceTint = c.acc,
+        inverseSurface = c.ink, inverseOnSurface = c.bg, inversePrimary = c.acc,
+        error = c.chi, onError = Color.White, errorContainer = c.chiS, onErrorContainer = c.chiInk,
+        outline = c.line, outlineVariant = c.line, scrim = c.scrim,
+        surfaceBright = c.sf, surfaceDim = c.bg, surfaceContainerLowest = c.bg, surfaceContainerLow = c.sf,
+        surfaceContainer = c.sf, surfaceContainerHigh = c.sf2, surfaceContainerHighest = c.sf2,
+    ) else lightColorScheme(
+        primary = c.acc, onPrimary = c.onAcc, primaryContainer = c.accS, onPrimaryContainer = c.accInk,
+        secondary = c.tur, onSecondary = c.ink, secondaryContainer = c.turS, onSecondaryContainer = c.turInk,
+        tertiary = c.leaf, onTertiary = Color.White, tertiaryContainer = c.leafS, onTertiaryContainer = c.leafInk,
+        background = c.bg, onBackground = c.ink, surface = c.sf, onSurface = c.ink,
+        surfaceVariant = c.sf2, onSurfaceVariant = c.ink2, surfaceTint = c.acc,
+        inverseSurface = c.ink, inverseOnSurface = c.bg, inversePrimary = c.acc,
+        error = c.chi, onError = Color.White, errorContainer = c.chiS, onErrorContainer = c.chiInk,
+        outline = c.line, outlineVariant = c.line, scrim = c.scrim,
+        surfaceBright = c.sf, surfaceDim = c.bg, surfaceContainerLowest = c.bg, surfaceContainerLow = c.sf,
+        surfaceContainer = c.sf, surfaceContainerHigh = c.sf2, surfaceContainerHighest = c.sf2,
+    )
 
 @Composable
 fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
@@ -161,12 +195,9 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
         else -> GoogleSansFlex
     }
     val exf = family == ExcalifontFamily
-    // Excalifont is a thin pen: everything is drawn a bit heavier (Android's fake-bold),
-    // a bit larger, and muted text gets more contrast, so it stays easy to read.
-    val synth = FontSynthesis.All
+    // Excalifont is a thin pen: heavier (Android's fake-bold), +1sp per role, and muted text gets more contrast.
     val cc = if (exf) c.copy(ink2 = lerp(c.ink2, c.ink, 0.35f)) else c
 
-    val density = LocalDensity.current
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -180,24 +211,23 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
         }
     }
 
-    val scheme = if (dark) {
-        darkColorScheme(primary = c.acc, onPrimary = c.onAcc, background = c.bg, onBackground = c.ink, surface = c.sf, onSurface = c.ink, surfaceVariant = c.sf2, outline = c.line, secondary = c.tur, error = c.chi)
-    } else {
-        lightColorScheme(primary = c.acc, onPrimary = c.onAcc, background = c.bg, onBackground = c.ink, surface = c.sf, onSurface = c.ink, surfaceVariant = c.sf2, outline = c.line, secondary = c.tur, error = c.chi)
-    }
+    val base = TextStyle(
+        fontFamily = family, fontSize = 14.sp, color = c.ink, fontFeatureSettings = "tnum", fontSynthesis = FontSynthesis.All,
+        fontWeight = if (exf) FontWeight.SemiBold else null,
+        // keeps emoji (taller than the Latin font) from being clipped / squished
+        platformStyle = PlatformTextStyle(includeFontPadding = true),
+    )
+    val type = appType(base, exf)
+    val reduced = rememberReducedMotion()
 
-    MaterialTheme(colorScheme = scheme, typography = Typography().withFont(family)) {
+    MaterialTheme(colorScheme = colorScheme(c), typography = type.toTypography()) {
         CompositionLocalProvider(
             LocalColors provides cc,
-            LocalDensity provides Density(density.density, density.fontScale * if (exf) 1.14f else 1f),
             LocalSketch provides settings.sketch,
             LocalContentColor provides c.ink,
-            LocalTextStyle provides TextStyle(
-                fontFamily = family, fontSize = 14.sp, color = c.ink, fontFeatureSettings = "tnum", fontSynthesis = synth,
-                fontWeight = if (exf) FontWeight.SemiBold else null,
-                // keeps emoji (taller than the Latin font) from being clipped / squished
-                platformStyle = PlatformTextStyle(includeFontPadding = true),
-            ),
+            LocalTextStyle provides base,
+            LocalAppType provides type,
+            LocalReducedMotion provides reduced,
             content = content,
         )
     }

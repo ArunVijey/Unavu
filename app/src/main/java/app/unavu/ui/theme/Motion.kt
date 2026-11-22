@@ -5,7 +5,18 @@ import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween
+import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
 
@@ -30,3 +41,21 @@ val LocalReducedMotion: ProvidableCompositionLocal<Boolean> = staticCompositionL
 @Composable
 fun <T> motionTween(durationMs: Int = Motion.MEDIUM, easing: Easing = Motion.EmphasizedDecelerate): FiniteAnimationSpec<T> =
     if (LocalReducedMotion.current) snap() else tween(durationMs, easing = easing)
+
+/** Reads Settings.Global.ANIMATOR_DURATION_SCALE and follows changes (scale 0 = reduced motion). */
+@Composable
+fun rememberReducedMotion(): Boolean {
+    val ctx = LocalContext.current
+    var reduced by remember { mutableStateOf(readReduced(ctx)) }
+    DisposableEffect(ctx) {
+        val obs = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) { reduced = readReduced(ctx) }
+        }
+        ctx.contentResolver.registerContentObserver(Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE), false, obs)
+        onDispose { ctx.contentResolver.unregisterContentObserver(obs) }
+    }
+    return reduced
+}
+
+private fun readReduced(ctx: Context): Boolean =
+    try { Settings.Global.getFloat(ctx.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f } catch (_: Exception) { false }
