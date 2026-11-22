@@ -14,6 +14,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.lazy.LazyItemScope
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.semantics.heading
+import app.unavu.ui.theme.LocalReducedMotion
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,7 +46,6 @@ import app.unavu.data.targets
 import app.unavu.data.total
 import app.unavu.ui.AppCard
 import app.unavu.ui.LocalData
-import app.unavu.ui.SectionLabel
 import app.unavu.ui.fmtTime
 import app.unavu.ui.theme.Motion
 import app.unavu.ui.theme.U
@@ -57,7 +63,7 @@ internal fun GapGrid(ds: List<String>) {
     val okLbl = stringResource(R.string.g_ins_gap_ok); val lowLbl = stringResource(R.string.g_ins_gap_low); val noneLbl = stringResource(R.string.g_ins_gap_none)
     val overLbl = stringResource(R.string.g_ins_gap_over)
     AppCard {
-        SectionLabel(stringResource(R.string.g_ins_gaps_title))
+        CardTitle(stringResource(R.string.g_ins_gaps_title))
         val lowCounts = mutableMapOf<String, Int>()
         keys.forEach { k ->
             val n = NUTRIENTS.first { it.key == k }
@@ -114,7 +120,7 @@ internal fun MealTiming(ds: List<String>) {
     val chartDesc = stringResource(R.string.g_ins_timing_desc, rows.count { r -> r.second.any { it != null } }, windowText ?: "")
 
     AppCard {
-        SectionLabel(stringResource(R.string.g_ins_timing_title))
+        CardTitle(stringResource(R.string.g_ins_timing_title))
         Canvas(Modifier.fillMaxWidth().height(130.dp).semantics { contentDescription = chartDesc }) {
             fun x(h: Float) = (h - 6f) / 18f * size.width
             listOf(6, 9, 12, 15, 18, 21, 24).forEach { h -> drawLine(c.line, Offset(x(h.toFloat()), 0f), Offset(x(h.toFloat()), size.height), 1f) }
@@ -136,5 +142,22 @@ internal fun MealTiming(ds: List<String>) {
         }
         if (windowText != null) Text(windowText, style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
         Text(stringResource(R.string.g_ins_timing_note), style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 4.dp), fontWeight = FontWeight.Normal)
+    }
+}
+
+/** Card/section heading inside Insights: title role, announced as a heading. */
+@Composable
+fun CardTitle(text: String, modifier: Modifier = Modifier) {
+    Text(text, style = U.t.title, color = U.c.ink, modifier = modifier.padding(bottom = 8.dp).semantics { heading() })
+}
+
+/** Lazy item that fades in with a 12dp upward slide, staggered 40ms by [index]; plays once per item (survives scrolling). */
+fun LazyListScope.staggerItem(key: String, contentType: String, index: Int, content: @Composable LazyItemScope.() -> Unit) {
+    item(key = key, contentType = contentType) {
+        val reduced = LocalReducedMotion.current
+        var shown by rememberSaveable(key) { mutableStateOf(reduced) }
+        val p by animateFloatAsState(if (shown) 1f else 0f, motionTween(Motion.LONG), label = "stagger")
+        LaunchedEffect(Unit) { if (!shown) { delay(40L * index.coerceAtMost(10)); shown = true } }
+        Box(Modifier.graphicsLayer { alpha = p; translationY = (1f - p) * 12.dp.toPx() }) { content() }
     }
 }

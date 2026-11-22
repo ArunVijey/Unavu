@@ -102,7 +102,8 @@ fun AccentSection() {
 @Composable
 private fun Swatch(color: Color?, name: String, on: Boolean, onClick: () -> Unit) {
     val c = U.c
-    val sc by androidx.compose.animation.core.animateFloatAsState(if (on) 1.12f else 1f, androidx.compose.animation.core.spring(0.55f, 500f), label = "swatchScale")
+    val reduced = app.unavu.ui.theme.LocalReducedMotion.current
+    val sc by androidx.compose.animation.core.animateFloatAsState(if (on) 1.12f else 1f, if (reduced) androidx.compose.animation.core.snap() else androidx.compose.animation.core.spring(0.55f, 500f), label = "swatchScale")
     val check by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else 0f, app.unavu.ui.theme.motionTween(app.unavu.ui.theme.Motion.MEDIUM), label = "swatchCheck")
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -115,7 +116,7 @@ private fun Swatch(color: Color?, name: String, on: Boolean, onClick: () -> Unit
                 .border(if (on) 3.dp else 0.dp, if (on) c.ink else Color.Transparent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            val tick = if ((color ?: Color.White).luminanceSafe() > 0.42f) Color.Black else Color.White
+            val tick = if ((color ?: LIGHT_INK).luminanceSafe() > 0.42f) DARK_INK else LIGHT_INK
             androidx.compose.foundation.Canvas(Modifier.size(22.dp)) {
                 val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.22f, size.height * 0.52f); lineTo(size.width * 0.43f, size.height * 0.72f); lineTo(size.width * 0.78f, size.height * 0.30f) }
                 val seg = androidx.compose.ui.graphics.PathMeasure().apply { setPath(p, false) }
@@ -130,7 +131,10 @@ private fun Swatch(color: Color?, name: String, on: Boolean, onClick: () -> Unit
 
 private fun Color.luminanceSafe() = 0.2126f * red + 0.7152f * green + 0.0722f * blue
 
-private val HUES = listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Color.Blue, Color.Magenta, Color.Red)
+// Fixed inks drawn on arbitrary picked colours (theme tokens may invert, so they cannot be used here).
+private val DARK_INK = Color(0xFF000000)
+private val LIGHT_INK = Color(0xFFFFFFFF)
+private val HUES = listOf(Color(0xFFFF0000), Color(0xFFFFFF00), Color(0xFF00FF00), Color(0xFF00FFFF), Color(0xFF0000FF), Color(0xFFFF00FF), Color(0xFFFF0000))
 
 /** HSV colour wheel: angle = hue, distance from centre = saturation, slider = brightness. */
 @Composable
@@ -166,13 +170,13 @@ private fun ColorWheelDialog(initial: Color, onDismiss: () -> Unit, onPick: (Col
                         // hue around the circle (sweep starts at 3 o'clock, matching atan2)
                         drawCircle(Brush.sweepGradient(HUES, center), r)
                         // white in the middle -> saturation
-                        drawCircle(Brush.radialGradient(listOf(Color.White, Color.White.copy(alpha = 0f)), center, r), r)
+                        drawCircle(Brush.radialGradient(listOf(LIGHT_INK, LIGHT_INK.copy(alpha = 0f)), center, r), r)
                         // darken for brightness
-                        drawCircle(Color.Black.copy(alpha = 1f - value), r)
+                        drawCircle(DARK_INK.copy(alpha = 1f - value), r)
                         // marker
                         val a = Math.toRadians(hue.toDouble())
                         val p = Offset(center.x + (cos(a) * sat * r).toFloat(), center.y + (sin(a) * sat * r).toFloat())
-                        drawCircle(Color.White, 13.dp.toPx(), p, style = Stroke(3.dp.toPx()))
+                        drawCircle(LIGHT_INK, 13.dp.toPx(), p, style = Stroke(3.dp.toPx()))
                         drawCircle(picked, 10.dp.toPx(), p)
                     }
                 }
@@ -190,7 +194,7 @@ private fun ColorWheelDialog(initial: Color, onDismiss: () -> Unit, onPick: (Col
                     )
                     Text(
                         stringResource(R.string.i_sample), style = U.t.label.copy(fontWeight = FontWeight.Bold),
-                        color = if (picked.luminanceSafe() > 0.42f) Color.Black else Color.White,
+                        color = if (picked.luminanceSafe() > 0.42f) DARK_INK else LIGHT_INK,
                         modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(picked).padding(horizontal = 14.dp, vertical = 8.dp),
                     )
                 }

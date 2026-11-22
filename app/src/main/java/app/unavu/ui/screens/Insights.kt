@@ -49,8 +49,8 @@ import app.unavu.ui.LocalData
 import app.unavu.ui.LocalFeedback
 import app.unavu.ui.Page
 import app.unavu.ui.QuickAddRequest
-import app.unavu.ui.SectionLabel
-import app.unavu.ui.Segmented
+import app.unavu.ui.SlidingSegmented
+import app.unavu.ui.EmptyState
 import app.unavu.ui.TopBar
 import app.unavu.ui.Track
 import app.unavu.ui.nav
@@ -104,10 +104,10 @@ fun InsightsScreen() {
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.g_ins_title))
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item(key = "range", contentType = "range") {
-                Segmented(listOf(stringResource(R.string.g_ins_week), stringResource(R.string.g_ins_month), stringResource(R.string.g_ins_3months)), range) { range = it }
+            staggerItem("range", "range", 0) {
+                SlidingSegmented(listOf(stringResource(R.string.g_ins_week), stringResource(R.string.g_ins_month), stringResource(R.string.g_ins_3months)), range) { range = it }
             }
-            item(key = "cards", contentType = "cards") {
+            staggerItem("cards", "cards", 1) {
                 val diff = calc.avg.kcal.roundToInt() - t.kcal
                 val avgText = if (calc.counted.isEmpty()) "–" else "%,d".format(calc.avg.kcal.roundToInt())
                 val avgSub = if (calc.counted.isEmpty()) stringResource(R.string.g_ins_no_logs) else if (diff <= 0) stringResource(R.string.g_ins_under, -diff) else stringResource(R.string.g_ins_over, diff)
@@ -127,23 +127,21 @@ fun InsightsScreen() {
                 }
             }
             if (!enough) {
-                item(key = "empty", contentType = "empty") {
+                staggerItem("empty", "empty", 2) {
                     AppCard {
-                        Text(stringResource(R.string.g_ins_empty_title), style = U.t.title, modifier = Modifier.semantics { heading() })
-                        Text(stringResource(R.string.g_ins_empty_body), style = U.t.bodyS, color = c.ink2, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
-                        SmallSecondary(stringResource(R.string.g_ins_empty_action)) { nav.quickAdd.value = QuickAddRequest() }
+                        EmptyState("📊", stringResource(R.string.g_ins_empty_title), stringResource(R.string.g_ins_empty_body), stringResource(R.string.g_ins_empty_action)) { nav.quickAdd.value = QuickAddRequest() }
                     }
                 }
             } else {
-                item(key = "logged", contentType = "caption") {
+                staggerItem("logged", "caption", 3) {
                     Text(stringResource(R.string.g_ins_logged_line, calc.logged.size, calc.logged.size - calc.counted.size), style = U.t.caption, color = c.ink2)
                 }
-                item(key = "kcal-chart", contentType = "chart") {
+                staggerItem("kcal-chart", "chart", 4) {
                     val desc = remember(calc, range, t.kcal) {
                         calc.run { if (range == 0) ds.indices.joinToString("; ") { i -> "${dates[i].dayOfWeek.getDisplayName(TextStyle.FULL, Locale.ENGLISH)} ${kcals[i].roundToInt()}" } else weekAvgs.indices.joinToString("; ") { i -> "week ${i + 1} ${weekAvgs[i].roundToInt()}" } }
                     }
                     AppCard {
-                        SectionLabel(stringResource(R.string.g_ins_kcal_per_day))
+                        CardTitle(stringResource(R.string.g_ins_kcal_per_day))
                         val chartDesc = stringResource(R.string.g_ins_kcal_chart_desc, t.kcal, desc)
                         if (range == 0) {
                             BarChart(
@@ -163,9 +161,9 @@ fun InsightsScreen() {
                         }
                     }
                 }
-                item(key = "nutrients", contentType = "card") {
+                staggerItem("nutrients", "card", 5) {
                     AppCard {
-                        SectionLabel(stringResource(R.string.g_ins_avg_vs_target))
+                        CardTitle(stringResource(R.string.g_ins_avg_vs_target))
                         NUTRIENTS.forEach { n ->
                             val have = n.value(calc.avg); val target = n.target(t)
                             val st = statusOf(n, have, target)
@@ -178,22 +176,22 @@ fun InsightsScreen() {
                         }
                     }
                 }
-                if (range == 0) item(key = "gaps", contentType = "card") { GapGrid(calc.ds) }
-                item(key = "timing", contentType = "card") { MealTiming(calc.ds) }
-                item(key = "top", contentType = "card") {
+                if (range == 0) staggerItem("gaps", "card", 6) { GapGrid(calc.ds) }
+                staggerItem("timing", "card", 7) { MealTiming(calc.ds) }
+                staggerItem("top", "card", 8) {
                     AppCard {
-                        SectionLabel(stringResource(R.string.g_ins_top_foods))
+                        CardTitle(stringResource(R.string.g_ins_top_foods))
                         calc.topFoods.forEach { (n, k) -> SourceRow(n, stringResource(R.string.g_kcal, k.roundToInt())) }
                     }
                 }
             }
-            item(key = "report", contentType = "card") {
+            staggerItem("report", "card", 9) {
                 val last = YearMonth.now().minusMonths(1)
                 val thisM = YearMonth.now()
                 val openLabel = stringResource(R.string.g_ins_report_open)
                 val failFallback = stringResource(R.string.g_ins_report_failed_generic)
                 AppCard {
-                    SectionLabel(stringResource(R.string.g_ins_report_title))
+                    CardTitle(stringResource(R.string.g_ins_report_title))
                     Text(stringResource(R.string.g_ins_report_body), style = U.t.bodyS, color = c.ink2)
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
