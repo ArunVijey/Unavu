@@ -3,7 +3,6 @@ package app.unavu.ui.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -16,9 +15,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
@@ -31,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -41,9 +44,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import app.unavu.R
 import app.unavu.ui.AppCard
 import app.unavu.ui.LocalData
 import app.unavu.ui.nav
@@ -53,17 +60,19 @@ import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.hypot
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
+// Accent swatch values are the one place raw colours live (they ARE the data).
 private val PRESETS = listOf(
-    "Turmeric" to DEFAULT_ACCENT,
-    "Leaf" to 0xFF4FAE76.toInt(),
-    "Chilli" to 0xFFE5484D.toInt(),
-    "Saffron" to 0xFFFF8A1F.toInt(),
-    "Ocean" to 0xFF3B82F6.toInt(),
-    "Teal" to 0xFF14B8A6.toInt(),
-    "Grape" to 0xFF8B5CF6.toInt(),
-    "Rose" to 0xFFEC4899.toInt(),
+    R.string.i_accent_turmeric to DEFAULT_ACCENT,
+    R.string.i_accent_leaf to 0xFF4FAE76.toInt(),
+    R.string.i_accent_chilli to 0xFFE5484D.toInt(),
+    R.string.i_accent_saffron to 0xFFFF8A1F.toInt(),
+    R.string.i_accent_ocean to 0xFF3B82F6.toInt(),
+    R.string.i_accent_teal to 0xFF14B8A6.toInt(),
+    R.string.i_accent_grape to 0xFF8B5CF6.toInt(),
+    R.string.i_accent_rose to 0xFFEC4899.toInt(),
 )
 
 /** Appearance › Accent colour: quick presets plus a colour wheel for anything else. */
@@ -73,45 +82,39 @@ fun AccentSection() {
     val c = U.c
     val store = nav.store
     val current = LocalData.current.settings.accent ?: DEFAULT_ACCENT
-    var wheel by remember { mutableStateOf(false) }
+    var wheel by rememberSaveable { mutableStateOf(false) }
     fun set(argb: Int?) = store.update { d -> d.copy(settings = d.settings.copy(accent = argb?.takeIf { it != DEFAULT_ACCENT })) }
 
     AppCard {
-        Text("Buttons, selected chips, the bottom bar and the + button use this colour.", fontSize = 12.5.sp, color = c.ink2)
-        Spacer(Modifier.height(14.dp))
-        FlowRow(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            PRESETS.forEach { (name, argb) -> Swatch(Color(argb), name, current == argb) { set(argb) } }
+        Text(stringResource(R.string.i_accent_desc), style = U.t.bodyS, color = c.ink2)
+        Spacer(Modifier.height(10.dp))
+        FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            PRESETS.forEach { (nameRes, argb) -> Swatch(Color(argb), stringResource(nameRes), current == argb) { set(argb) } }
             val custom = PRESETS.none { it.second == current }
-            Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
-                Box(
-                    Modifier.size(44.dp).clip(CircleShape)
-                        .background(Brush.sweepGradient(HUES))
-                        .border(if (custom) 3.dp else 0.dp, if (custom) c.ink else Color.Transparent, CircleShape)
-                        .clickable { wheel = true },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Box(Modifier.size(20.dp).clip(CircleShape).background(if (custom) Color(current) else Color.White))
-                }
-                Text("Custom", fontSize = 11.sp, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
-            }
+            Swatch(if (custom) Color(current) else null, stringResource(R.string.i_accent_custom), custom) { wheel = true }
         }
     }
     if (wheel) ColorWheelDialog(Color(current), onDismiss = { wheel = false }) { set(it.toArgb()); wheel = false }
 }
 
+/** One accent colour: a 48dp+ touch target named underneath. A null colour is the rainbow "custom" swatch. */
 @Composable
-private fun Swatch(color: Color, name: String, on: Boolean, onClick: () -> Unit) {
+private fun Swatch(color: Color?, name: String, on: Boolean, onClick: () -> Unit) {
     val c = U.c
-    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.width(56.dp)) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.width(72.dp).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
+            .selectable(selected = on, role = Role.RadioButton, onClick = onClick).padding(vertical = 4.dp),
+    ) {
         Box(
-            Modifier.size(44.dp).clip(CircleShape).background(color)
-                .border(if (on) 3.dp else 0.dp, if (on) c.ink else Color.Transparent, CircleShape)
-                .clickable(onClick = onClick),
+            Modifier.size(44.dp).clip(CircleShape)
+                .then(if (color == null) Modifier.background(Brush.sweepGradient(HUES)) else Modifier.background(color))
+                .border(if (on) 3.dp else 0.dp, if (on) c.ink else Color.Transparent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            if (on) Box(Modifier.size(12.dp).clip(CircleShape).background(if (color.luminanceSafe() > 0.42f) Color(0xFF111111) else Color.White))
+            if (on) Box(Modifier.size(12.dp).clip(CircleShape).background(if ((color ?: Color.White).luminanceSafe() > 0.42f) Color.Black else Color.White))
         }
-        Text(name, fontSize = 11.sp, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
+        Text(name, style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -124,10 +127,11 @@ private val HUES = listOf(Color.Red, Color.Yellow, Color.Green, Color.Cyan, Colo
 private fun ColorWheelDialog(initial: Color, onDismiss: () -> Unit, onPick: (Color) -> Unit) {
     val c = U.c
     val hsv = remember { FloatArray(3).also { android.graphics.Color.colorToHSV(initial.toArgb(), it) } }
-    var hue by remember { mutableFloatStateOf(hsv[0]) }
-    var sat by remember { mutableFloatStateOf(hsv[1]) }
-    var value by remember { mutableFloatStateOf(hsv[2].coerceAtLeast(0.35f)) }
+    var hue by rememberSaveable { mutableFloatStateOf(hsv[0]) }
+    var sat by rememberSaveable { mutableFloatStateOf(hsv[1]) }
+    var value by rememberSaveable { mutableFloatStateOf(hsv[2].coerceAtLeast(0.35f)) }
     val picked = Color.hsv(hue, sat, value)
+    val wheelDesc = stringResource(R.string.i_wheel_cd) + " " + stringResource(R.string.i_wheel_value, hue.roundToInt(), (sat * 100).roundToInt())
 
     fun pick(o: Offset, w: Float, h: Float) {
         val cx = w / 2; val cy = h / 2; val r = min(w, h) / 2
@@ -138,12 +142,13 @@ private fun ColorWheelDialog(initial: Color, onDismiss: () -> Unit, onPick: (Col
 
     AlertDialog(
         onDismissRequest = onDismiss, containerColor = c.sf,
-        title = { Text("Pick a colour", fontWeight = FontWeight.Bold) },
+        title = { Text(stringResource(R.string.i_pick_colour), style = U.t.title.copy(fontWeight = FontWeight.Bold), color = c.ink) },
         text = {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Box(Modifier.fillMaxWidth(0.85f).aspectRatio(1f)) {
                     Canvas(
                         Modifier.fillMaxWidth().aspectRatio(1f)
+                            .semantics { contentDescription = wheelDesc }
                             .pointerInput(Unit) { detectTapGestures { pick(it, size.width.toFloat(), size.height.toFloat()) } }
                             .pointerInput(Unit) { detectDragGestures { ch, _ -> pick(ch.position, size.width.toFloat(), size.height.toFloat()) } },
                     ) {
@@ -162,7 +167,7 @@ private fun ColorWheelDialog(initial: Color, onDismiss: () -> Unit, onPick: (Col
                     }
                 }
                 Spacer(Modifier.height(14.dp))
-                Text("Brightness", fontSize = 12.sp, color = c.ink2, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.i_brightness), style = U.t.caption, color = c.ink2, modifier = Modifier.fillMaxWidth())
                 Slider(
                     value, { value = it }, valueRange = 0.35f..1f,
                     colors = SliderDefaults.colors(thumbColor = picked, activeTrackColor = picked, inactiveTrackColor = c.sf2),
@@ -170,18 +175,18 @@ private fun ColorWheelDialog(initial: Color, onDismiss: () -> Unit, onPick: (Col
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Box(Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(picked))
                     Text(
-                        "  #%06X".format(picked.toArgb() and 0xFFFFFF), fontWeight = FontWeight.Bold, fontSize = 15.sp,
+                        "  #%06X".format(picked.toArgb() and 0xFFFFFF), style = U.t.body.copy(fontWeight = FontWeight.Bold), color = c.ink,
                         modifier = Modifier.weight(1f),
                     )
                     Text(
-                        "Sample", fontWeight = FontWeight.Bold, fontSize = 13.sp,
-                        color = if (picked.luminanceSafe() > 0.42f) Color(0xFF111111) else Color.White,
+                        stringResource(R.string.i_sample), style = U.t.label.copy(fontWeight = FontWeight.Bold),
+                        color = if (picked.luminanceSafe() > 0.42f) Color.Black else Color.White,
                         modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(picked).padding(horizontal = 14.dp, vertical = 8.dp),
                     )
                 }
             }
         },
-        confirmButton = { TextButton({ onPick(picked) }) { Text("Use this colour", color = c.accInk, fontWeight = FontWeight.Bold) } },
-        dismissButton = { TextButton(onDismiss) { Text("Cancel", color = c.ink2) } },
+        confirmButton = { TextButton({ onPick(picked) }) { Text(stringResource(R.string.i_use_colour), color = c.accInk, style = U.t.label.copy(fontWeight = FontWeight.Bold)) } },
+        dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.i_cancel), color = c.ink2, style = U.t.label) } },
     )
 }

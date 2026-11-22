@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Settings home -->
+    <string name="i_settings_title">Settings</string>
+    <string name="i_you">You</string>
+    <string name="i_male">Male</string>
+    <string name="i_female">Female</string>
+    <string name="i_profile_line">%1$s · %2$d · %3$d cm · %4$s kg</string>
+    <string name="i_edit">Edit</string>
+    <string name="i_goal_targets">Goal &amp; targets</string>
+    <string name="i_goal_targets_sub">%1$d kcal · meal split · water · home chips</string>
+    <string name="i_my_portions">My portions</string>
+    <plurals name="i_portions_remembered">
+        <item quantity="one">%d food remembered</item>
+        <item quantity="other">%d foods remembered</item>
+    </plurals>
+    <string name="i_my_foods">My foods</string>
+    <string name="i_my_foods_none">Add anything new you eat</string>
+    <string name="i_my_foods_n">%d added · add something new</string>
+    <string name="i_smart_target">Smart target</string>
+    <string name="i_smart_auto">Automatic</string>
+    <string name="i_smart_ask">Asks before changing</string>
+    <string name="i_smart_manual">Set by you</string>
+    <string name="i_smart_pending"> · new estimate waiting</string>
+    <string name="i_appearance">Appearance</string>
+    <string name="i_theme_system">System</string>
+    <string name="i_theme_light">Light</string>
+    <string name="i_theme_dark">Dark</string>
+    <string name="i_amoled_short"> · AMOLED</string>
+    <string name="i_backup">Backup</string>
+    <string name="i_backup_none">Not set up yet</string>
+    <string name="i_backup_not_run">Folder set · not run yet</string>
+    <string name="i_backup_last">Last: %1$s</string>
+    <string name="i_backup_failed_suffix"> · failed</string>
+    <string name="i_reminders">Reminders</string>
+    <string name="i_reminders_on">%d on</string>
+    <string name="i_reminders_off_perm">%d on · notifications blocked</string>
+    <string name="i_saved_combos">Saved combos &amp; my recipes</string>
+    <string name="i_in_meals_tab">In the Meals tab</string>
+    <string name="i_about_food">About &amp; food data</string>
+    <string name="i_about_food_sub">IFCT 2017 · %d dishes</string>
+
+    <!-- Profile -->
+    <string name="i_your_details">Your details</string>
+    <string name="i_see_targets">See new targets →</string>
+    <string name="i_save">Save</string>
+    <string name="i_details_saved">Details saved</string>
+
+    <!-- Goals -->
+    <string name="i_daily_target">Daily target</string>
+    <string name="i_kcal_big">%d kcal</string>
+    <string name="i_macros_line">P %1$d g · C %2$d g · F %3$d g · Fibre %4$d g</string>
+    <string name="i_change_hint">Change your weight, activity or goal in your details.</string>
+    <string name="i_edit_details">Edit my details &amp; goal</string>
+    <string name="i_meal_split">Meal split · % of the day\'s calories</string>
+    <string name="i_kcal_n">%d kcal</string>
+    <string name="i_total_ok">Total 100% ✓</string>
+    <string name="i_total_bad">Total %d%%: must add up to 100%%</string>
+    <string name="i_save_split">Save split</string>
+    <string name="i_split_saved">Meal split saved</string>
+    <string name="i_water_goal">Water goal</string>
+    <string name="i_daily_water">Daily water</string>
+    <string name="i_litres_unit">%s L</string>
+    <string name="i_chips_title">Nutrient chips on Today · up to 6</string>
+    <string name="i_chips_limit">You can show up to 6 chips. Remove one to add another.</string>
+    <string name="i_chips_min">Keep at least one chip.</string>
+    <string name="i_targets_source">Targets: ICMR-NIN 2020 RDA for Indians. Limits: sodium 2,000 mg, added sugar 25 g, saturated fat 10% of calories.</string>
+
+    <!-- Appearance -->
+    <string name="i_style">Style</string>
+    <string name="i_style_clean">Clean</string>
+    <string name="i_style_sketch">Sketch ✎</string>
+    <string name="i_sketch_desc">Hand-drawn look: Excalifont, sketchy outlines and dotted paper. Works with light, dark and pure black.</string>
+    <string name="i_clean_desc">Sharp, minimal look.</string>
+    <string name="i_theme">Theme</string>
+    <string name="i_theme_system_default">System default</string>
+    <string name="i_theme_system_sub">Follows your phone</string>
+    <string name="i_amoled">Pure black (AMOLED)</string>
+    <string name="i_amoled_sub">True black whenever dark is on. Saves battery.</string>
+    <string name="i_accent">Accent colour</string>
+    <string name="i_font">Font</string>
+    <string name="i_font_default">Default</string>
+    <string name="i_font_compact">Compact</string>
+    <string name="i_font_hand">Hand-drawn</string>
+    <string name="i_font_sample">Aa 638</string>
+    <string name="i_sketch_font_note">Sketch style always uses Excalifont.</string>
+    <string name="i_tamil_font_note">Tamil text always uses Noto Sans Tamil · தமிழ்</string>
+
+    <!-- Accent -->
+    <string name="i_accent_desc">Buttons, selected chips, the bottom bar and the + button use this colour.</string>
+    <string name="i_accent_turmeric">Turmeric</string>
+    <string name="i_accent_leaf">Leaf</string>
+    <string name="i_accent_chilli">Chilli</string>
+    <string name="i_accent_saffron">Saffron</string>
+    <string name="i_accent_ocean">Ocean</string>
+    <string name="i_accent_teal">Teal</string>
+    <string name="i_accent_grape">Grape</string>
+    <string name="i_accent_rose">Rose</string>
+    <string name="i_accent_custom">Custom</string>
+    <string name="i_pick_colour">Pick a colour</string>
+    <string name="i_wheel_cd">Colour wheel. Use the brightness slider or tap to choose.</string>
+    <string name="i_wheel_value">Hue %1$d degrees, saturation %2$d percent</string>
+    <string name="i_brightness">Brightness</string>
+    <string name="i_sample">Sample</string>
+    <string name="i_use_colour">Use this colour</string>
+    <string name="i_cancel">Cancel</string>
+
+    <!-- Portions -->
+    <string name="i_portions_hint">🥄 The last portion and choices you used for each food are remembered and pre-filled next time. Change them while logging, or tap one here.</string>
+    <string name="i_portions_empty">Nothing remembered yet. Log a food and it will appear here.</string>
+    <string name="i_portions_empty_action">Log a food</string>
+    <string name="i_portion_line">%1$s %2$s · 1 %3$s = %4$d %5$s%6$s</string>
+    <string name="i_remember">Remember</string>
+    <string name="i_portion_removed">Removed remembered portion</string>
+    <string name="i_portion_saved">Portion remembered</string>
+    <string name="i_undo">Undo</string>
+
+    <!-- Backup -->
+    <string name="i_pick_folder_start">📁 Pick a folder to start backing up</string>
+    <string name="i_not_backed_up">Not backed up yet</string>
+    <string name="i_last_backup">✅ Last backup: %s</string>
+    <string name="i_last_backup_failed">⚠️ Last backup failed</string>
+    <string name="i_backing_up">Backing up…</string>
+    <string name="i_backup_now">⇪ Back up now</string>
+    <string name="i_backup_needs_folder">Choose a folder first to back up.</string>
+    <string name="i_backed_up">Backed up: %s</string>
+    <string name="i_backup_error">Backup failed: %s</string>
+    <string name="i_backup_error_unknown">Something went wrong</string>
+    <string name="i_folder_section">Folder on this phone</string>
+    <string name="i_no_folder">No folder chosen</string>
+    <string name="i_overwritten">The same files are overwritten each time</string>
+    <string name="i_choose">Choose</string>
+    <string name="i_change">Change</string>
+    <string name="i_file_json">Everything: logs, recipes, combos, portions, settings</string>
+    <string name="i_file_prev">Safety copy of the previous backup</string>
+    <string name="i_file_log">Every food you logged (opens in Excel/Sheets)</string>
+    <string name="i_file_summary">One row per day: totals, water, weight, cheat</string>
+    <string name="i_daily_backup">Daily automatic backup</string>
+    <string name="i_backup_every_day">Back up every day</string>
+    <string name="i_backup_every_day_sub">Runs even if the app is closed; catches up next time you open the app</string>
+    <string name="i_time">Time</string>
+    <string name="i_restore">Restore</string>
+    <string name="i_restore_button">⟲ Restore from a backup file</string>
+    <string name="i_restore_note">Restore replaces everything in the app with the file\'s contents.</string>
+    <string name="i_restore_title">Restore this backup?</string>
+    <string name="i_restore_text">Everything currently in the app will be replaced. You can undo right after. Tip: tap “Back up now” first if you want to keep today\'s data.</string>
+    <string name="i_restore_confirm">Restore</string>
+    <string name="i_restored">Restored %d food entries</string>
+    <string name="i_restore_failed">Restore failed: %s</string>
+
+    <!-- Reminders -->
+    <string name="i_reminders_title">Reminders</string>
+    <string name="i_reminders_hint">Meal reminders skip themselves if that meal is already logged. Water stops once you reach your goal; weigh-in skips if you already weighed in.</string>
+    <string name="i_notif_off_title">Notifications are off</string>
+    <string name="i_notif_off_text">Reminders can\'t show until you allow notifications.</string>
+    <string name="i_notif_allow">Allow notifications</string>
+    <string name="i_notif_open_settings">Open settings</string>
+    <string name="i_reminder_from">From %s</string>
+    <string name="i_reminder_sub">%s · tap to change</string>
+    <string name="i_reminder_toggle_cd">%s reminder</string>
+
+    <!-- About -->
+    <string name="i_about_title">About &amp; food data</string>
+    <string name="i_about_app">Unavu 0.3</string>
+    <string name="i_about_app_text">Personal calorie &amp; nutrient tracker for Tamil Nadu food. Everything stays on this phone.</string>
+    <string name="i_numbers_title">Where the numbers come from</string>
+    <string name="i_numbers_text">• Ingredients: Indian Food Composition Tables 2017 (ICMR-NIN), %1$d items.\n• Dishes (%2$d): calculated from typical home recipes: raw ingredient weights ÷ cooked weight. Your choices (vegetables, dal, sugar, milk, oil level) change the numbers.\n• A few everyday items not in IFCT (salt, sugar, toned milk, curd, bread, Boost/Horlicks, sauces) use USDA or label values.\n• Fast-food items are home-recipe estimates, not official chain values.\n• Targets: Mifflin-St Jeor for calories; ICMR-NIN 2020 RDA for nutrients.</string>
+    <string name="i_ifct_credit">IFCT 2017 data via @ifct2017/compositions (MIT)</string>
+
+    <!-- Onboarding -->
+    <string name="i_about_you">About you</string>
+    <string name="i_calc_plan">Calculate my plan →</string>
+    <string name="i_step_1_of_2">Step 1 of 2</string>
+    <string name="i_step_2_of_2">Step 2 of 2</string>
+    <string name="i_about_you_tamil">உங்களைப் பற்றி · used to calculate your daily needs</string>
+    <string name="i_sex">Sex</string>
+    <string name="i_body">Body</string>
+    <string name="i_activity">Activity</string>
+    <string name="i_goal">Goal</string>
+    <string name="i_act_desk">Desk job</string>
+    <string name="i_act_light">Light walk</string>
+    <string name="i_act_moderate">Moderate</string>
+    <string name="i_act_very">Very active</string>
+    <string name="i_goal_lose">Lose</string>
+    <string name="i_goal_maintain">Maintain</string>
+    <string name="i_goal_gain">Gain</string>
+    <string name="i_age_label">Age · yrs</string>
+    <string name="i_height_label">Height · cm</string>
+    <string name="i_weight_label">Weight · kg</string>
+    <string name="i_err_age">Age must be 10 to 100</string>
+    <string name="i_err_height">Height must be 100 to 250 cm</string>
+    <string name="i_err_weight">Weight must be 20 to 300 kg</string>
+    <string name="i_fix_fields">Fix the highlighted fields to continue</string>
+    <string name="i_targets_title">Your daily targets</string>
+    <string name="i_start_tracking">Looks good, start tracking</string>
+    <string name="i_targets_source_short">Mifflin-St Jeor + ICMR-NIN 2020 RDA</string>
+    <string name="i_eat_about">Eat about</string>
+    <string name="i_kcal_day">kcal / day</string>
+    <string name="i_goal_lose_text">−%d to lose ~0.5 kg/week</string>
+    <string name="i_goal_gain_text">+%d for lean gain</string>
+    <string name="i_goal_maintain_text">maintain weight</string>
+    <string name="i_bmr_line">BMR %1$d · Maintenance %2$d · %3$s</string>
+    <string name="i_macros">Macros</string>
+    <string name="i_protein">🍗 Protein</string>
+    <string name="i_carbs">🍚 Carbs</string>
+    <string name="i_fat">🥥 Fat</string>
+    <string name="i_fibre">🥬 Fibre</string>
+    <string name="i_key_nutrients">Key nutrients</string>
+    <string name="i_iron">Iron</string>
+    <string name="i_calcium">Calcium</string>
+    <string name="i_sodium_limit">Sodium (limit)</string>
+    <string name="i_sugar_limit">Added sugar (limit)</string>
+    <string name="i_mg">%d mg</string>
+    <string name="i_mg_limit">≤ %d mg</string>
+    <string name="i_g">%d g</string>
+    <string name="i_g_limit">≤ %d g</string>
+</resources>
