@@ -32,6 +32,11 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.drawText
+import androidx.compose.ui.graphics.drawscope.scale
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
@@ -232,27 +237,58 @@ fun BarChart(
 ) {
     val c = U.c
     val maxV = (values + listOfNotNull(target)).maxOrNull()?.takeIf { it > 0 }?.times(1.12) ?: 1.0
-    val prog = remember { Animatable(0f) }
-    val spec = motionTween<Float>(app.unavu.ui.theme.Motion.LONG)
-    LaunchedEffect(Unit) { prog.animateTo(1f, spec) }
+    val reduced = app.unavu.ui.theme.LocalReducedMotion.current
+    val long = app.unavu.ui.theme.Motion.LONG
+    val stagger = 30
+    val totalMs = long + stagger * (values.size - 1).coerceAtLeast(0)
+    val prog = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!reduced) prog.animateTo(1f, androidx.compose.animation.core.tween(totalMs, easing = androidx.compose.animation.core.LinearEasing)) }
+    var sel by remember { mutableStateOf(-1) }
+    val chipA by animateFloatAsState(if (sel >= 0) 1f else 0f, motionTween(app.unavu.ui.theme.Motion.SHORT), label = "barChip")
+    var shownSel by remember { mutableStateOf(0) }
+    if (sel >= 0) shownSel = sel
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val chipStyle = U.t.caption.copy(fontWeight = FontWeight.Bold, color = c.bg)
     val summary = contentDescription ?: stringResource(
         R.string.d_bar_chart,
         values.mapIndexed { i, v -> "${labels.getOrElse(i) { "" }.replace("\n", " ")} ${v.toInt()}" }.joinToString(", ") + (target?.let { ", target ${it.toInt()}" } ?: ""),
     )
     Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) { this.contentDescription = summary }) {
         Box(Modifier.fillMaxWidth().height(height.dp)) {
-            Canvas(Modifier.fillMaxWidth().height(height.dp)) {
+            Canvas(
+                Modifier.fillMaxWidth().height(height.dp).pointerInput(values.size) {
+                    detectTapGestures { o ->
+                        val i = (o.x / (size.width / values.size.coerceAtLeast(1))).toInt().coerceIn(0, values.size - 1)
+                        sel = if (sel == i) -1 else i
+                    }
+                },
+            ) {
                 val n = values.size.coerceAtLeast(1)
                 val slot = size.width / n
                 val bw = (slot * 0.62f).coerceAtMost(28.dp.toPx())
                 values.forEachIndexed { i, v ->
-                    val h = ((v / maxV * size.height).toFloat().coerceAtLeast(if (v > 0) 4f else 3f)) * prog.value
+                    val raw = ((prog.value * totalMs - stagger * i) / long).coerceIn(0f, 1f)
+                    val k = 1f - (1f - raw) * (1f - raw) * (1f - raw)
+                    val h = ((v / maxV * size.height).toFloat().coerceAtLeast(if (v > 0) 4f else 3f)) * k
                     val x = slot * i + (slot - bw) / 2
-                    drawRoundRect(colors.getOrElse(i) { c.leaf }.copy(alpha = if (v > 0) 1f else 0.25f), Offset(x, size.height - h), Size(bw, h), CornerRadius(6.dp.toPx()))
+                    val dim = if (sel >= 0 && sel != i) 0.5f else 1f
+                    drawRoundRect(colors.getOrElse(i) { c.leaf }.copy(alpha = (if (v > 0) 1f else 0.25f) * dim), Offset(x, size.height - h), Size(bw, h), CornerRadius(6.dp.toPx()))
                 }
                 target?.let {
                     val y = (size.height - it / maxV * size.height).toFloat()
                     drawLine(c.leaf, Offset(0f, y), Offset(size.width, y), 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(10f, 8f)))
+                }
+                if (chipA > 0.01f && shownSel in values.indices) {
+                    val v = values[shownSel]
+                    val lay = measurer.measure(v.toInt().toString(), chipStyle)
+                    val cw = lay.size.width + 14.dp.toPx(); val ch = lay.size.height + 6.dp.toPx()
+                    val barTop = size.height - ((v / maxV * size.height).toFloat().coerceAtLeast(4f))
+                    val cx = (slot * shownSel + slot / 2).coerceIn(cw / 2, size.width - cw / 2)
+                    val cy = (barTop - ch - 4.dp.toPx()).coerceAtLeast(0f)
+                    scale(0.85f + 0.15f * chipA, Offset(cx, cy + ch)) {
+                        drawRoundRect(c.ink.copy(alpha = chipA), Offset(cx - cw / 2, cy), Size(cw, ch), CornerRadius(ch / 2))
+                        drawText(lay, topLeft = Offset(cx - lay.size.width / 2f, cy + 3.dp.toPx()), alpha = chipA)
+                    }
                 }
             }
         }
@@ -271,19 +307,53 @@ fun LineChart(points: List<Pair<Float, Double>>, line: List<Pair<Float, Double>>
     val ys = (points + line).map { it.second }
     if (ys.isEmpty()) return
     val minY = ys.min() - 0.4; val maxY = ys.max() + 0.4
+    val reduced = app.unavu.ui.theme.LocalReducedMotion.current
+    val reveal = remember { Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { if (!reduced) reveal.animateTo(1f, androidx.compose.animation.core.tween(app.unavu.ui.theme.Motion.LONG, easing = app.unavu.ui.theme.Motion.EmphasizedDecelerate)) }
+    var sel by remember { mutableStateOf(-1) }
+    val chipA by animateFloatAsState(if (sel >= 0) 1f else 0f, motionTween(app.unavu.ui.theme.Motion.SHORT), label = "lineChip")
+    var shownSel by remember { mutableStateOf(0) }
+    if (sel >= 0) shownSel = sel
+    val measurer = androidx.compose.ui.text.rememberTextMeasurer()
+    val chipStyle = U.t.caption.copy(fontWeight = FontWeight.Bold, color = c.bg)
     val summary = contentDescription ?: stringResource(R.string.d_line_chart, points.size)
-    Canvas(modifier.fillMaxWidth().height(height.dp).semantics { this.contentDescription = summary }) {
+    Canvas(
+        modifier.fillMaxWidth().height(height.dp).semantics { this.contentDescription = summary }.pointerInput(points) {
+            detectTapGestures { o ->
+                if (points.isEmpty()) return@detectTapGestures
+                val i = points.indices.minByOrNull { kotlin.math.abs(points[it].first * size.width - o.x) } ?: -1
+                sel = if (sel == i) -1 else i
+            }
+        },
+    ) {
         fun px(p: Pair<Float, Double>) = Offset(p.first * size.width, (size.height - ((p.second - minY) / (maxY - minY)) * size.height).toFloat())
         val steps = 3
         for (i in 0..steps) {
             val y = size.height * i / steps
             drawLine(c.line, Offset(0f, y), Offset(size.width, y), 1f)
         }
-        points.forEach { drawCircle(c.ink2.copy(alpha = 0.55f), 3.dp.toPx(), px(it)) }
+        points.forEach { if (it.first <= reveal.value + 0.001f) drawCircle(c.ink2.copy(alpha = 0.55f), 3.dp.toPx(), px(it)) }
         if (line.size >= 2) {
             val path = Path()
             line.forEachIndexed { i, p -> val o = px(p); if (i == 0) path.moveTo(o.x, o.y) else path.lineTo(o.x, o.y) }
-            drawPath(path, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+            if (reveal.value >= 1f) drawPath(path, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+            else {
+                val pm = androidx.compose.ui.graphics.PathMeasure(); pm.setPath(path, false)
+                val seg = Path(); pm.getSegment(0f, pm.length * reveal.value, seg, true)
+                drawPath(seg, color, style = Stroke(2.5.dp.toPx(), cap = StrokeCap.Round))
+            }
+        }
+        if (chipA > 0.01f && shownSel in points.indices) {
+            val pt = points[shownSel]; val o = px(pt)
+            drawCircle(color.copy(alpha = chipA), 6.dp.toPx(), o)
+            val lay = measurer.measure("%.1f".format(pt.second), chipStyle)
+            val cw = lay.size.width + 14.dp.toPx(); val ch = lay.size.height + 6.dp.toPx()
+            val cx = o.x.coerceIn(cw / 2, size.width - cw / 2)
+            val cy = (o.y - ch - 10.dp.toPx()).coerceAtLeast(0f)
+            scale(0.85f + 0.15f * chipA, Offset(cx, cy + ch)) {
+                drawRoundRect(c.ink.copy(alpha = chipA), Offset(cx - cw / 2, cy), Size(cw, ch), CornerRadius(ch / 2))
+                drawText(lay, topLeft = Offset(cx - lay.size.width / 2f, cy + 3.dp.toPx()), alpha = chipA)
+            }
         }
     }
 }
