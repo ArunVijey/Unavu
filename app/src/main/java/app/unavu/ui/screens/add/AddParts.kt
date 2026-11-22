@@ -1,5 +1,27 @@
 package app.unavu.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import app.unavu.ui.pressScale
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.motionTween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,15 +89,59 @@ internal fun ParsedRow(item: NewItem, onClick: () -> Unit) {
     }
 }
 
-/** Big accent button. [enabled] = false dims it; the label itself says why (see QuickAdd). */
+/** Big accent button. [enabled] = false dims it; the label morphs as it changes; [success] swaps it for a drawn check. */
+@OptIn(androidx.compose.animation.ExperimentalAnimationApi::class)
 @Composable
-fun AddButton(text: String, enabled: Boolean, onClick: () -> Unit) {
+fun AddButton(text: String, enabled: Boolean, success: Boolean = false, onClick: () -> Unit) {
     val c = U.c
+    val bg by androidx.compose.animation.animateColorAsState(if (enabled || success) c.acc else c.acc.copy(alpha = 0.35f), motionTween(), label = "addBg")
+    val prog = remember { androidx.compose.animation.core.Animatable(0f) }
+    val reduced = LocalReducedMotion.current
+    LaunchedEffect(success) {
+        if (success) { if (reduced) prog.snapTo(1f) else prog.animateTo(1f, androidx.compose.animation.core.tween(300, easing = Motion.EmphasizedDecelerate)) } else prog.snapTo(0f)
+    }
     Box(
-        Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(18.dp)).background(if (enabled) c.acc else c.acc.copy(alpha = 0.35f))
-            .clickable(enabled = enabled, role = Role.Button, onClick = onClick).padding(vertical = 16.dp),
+        Modifier.fillMaxWidth().heightIn(min = 52.dp).pressScale().clip(RoundedCornerShape(18.dp)).background(bg)
+            .clickable(enabled = enabled && !success, role = Role.Button, onClick = onClick).padding(vertical = 16.dp),
         contentAlignment = Alignment.Center,
-    ) { Text(text, style = U.t.body, fontWeight = FontWeight.ExtraBold, color = if (enabled) c.onAcc else c.ink2) }
+    ) {
+        if (success) {
+            Canvas(Modifier.size(22.dp)) {
+                val p = Path().apply { moveTo(size.width * 0.12f, size.height * 0.55f); lineTo(size.width * 0.4f, size.height * 0.82f); lineTo(size.width * 0.9f, size.height * 0.22f) }
+                val seg = androidx.compose.ui.graphics.PathMeasure().also { it.setPath(p, false) }
+                val out = Path()
+                seg.getSegment(0f, seg.length * prog.value, out, true)
+                drawPath(out, c.onAcc, style = Stroke(size.width * 0.14f, cap = StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            }
+        } else {
+            AnimatedContent(
+                text, label = "addLabel",
+                transitionSpec = { (fadeIn(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) + slideInVertically(androidx.compose.animation.core.tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) { it / 3 }) togetherWith fadeOut(androidx.compose.animation.core.tween(90)) },
+            ) { s -> Text(s, style = U.t.body, fontWeight = FontWeight.ExtraBold, color = if (enabled) c.onAcc else c.ink2) }
+        }
+    }
+}
+
+/** Segmented control with an accent thumb that slides between the options. */
+@Composable
+fun <T> SlidingSegments(options: List<T>, selected: T, label: @Composable (T) -> String, onSelect: (T) -> Unit) {
+    val c = U.c
+    val idx = options.indexOf(selected).coerceAtLeast(0)
+    val segW = 92.dp
+    val off by animateDpAsState(segW * idx, motionTween(Motion.MEDIUM, Motion.Emphasized), label = "segThumb")
+    Box(Modifier.clip(RoundedCornerShape(50)).background(c.sf2).padding(4.dp).selectableGroup()) {
+        Box(Modifier.offset(x = off).size(segW, 44.dp).clip(RoundedCornerShape(50)).background(c.acc))
+        Row {
+            options.forEach { o ->
+                val on = o == selected
+                val col by androidx.compose.animation.animateColorAsState(if (on) c.onAcc else c.ink2, motionTween(), label = "segCol")
+                Box(
+                    Modifier.size(segW, 44.dp).clip(RoundedCornerShape(50)).selectable(selected = on, role = Role.Tab) { if (!on) onSelect(o) },
+                    contentAlignment = Alignment.Center,
+                ) { Text(label(o), style = U.t.label, fontWeight = FontWeight.Bold, color = col) }
+            }
+        }
+    }
 }
 
 @Composable
@@ -93,4 +159,13 @@ fun LiquidTile(emoji: String, name: String, sub: String, on: Boolean, modifier: 
         Text(name, style = t.label, fontWeight = FontWeight.Bold)
         Text(sub, style = t.caption, color = c.ink2)
     }
+}
+
+/** Fades + slides its content in after a 40ms-per-index stagger. */
+@Composable
+fun StaggerIn(index: Int, content: @Composable () -> Unit) {
+    val reduced = LocalReducedMotion.current
+    val p = remember { androidx.compose.animation.core.Animatable(if (reduced) 1f else 0f) }
+    LaunchedEffect(Unit) { p.animateTo(1f, androidx.compose.animation.core.tween(Motion.MEDIUM, delayMillis = index * 40, easing = Motion.EmphasizedDecelerate)) }
+    Box(Modifier.graphicsLayer { alpha = p.value; translationY = (1f - p.value) * 10.dp.toPx() }) { content() }
 }

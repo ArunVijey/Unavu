@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- Quick add -->
-    <string name="f_mode_food">FOOD</string>
-    <string name="f_mode_liquid">LIQUID</string>
-    <string name="f_mode_weight">WEIGHT</string>
+    <string name="f_mode_food">Food</string>
+    <string name="f_mode_liquid">Liquid</string>
+    <string name="f_mode_weight">Weight</string>
     <string name="f_mode_group">Add mode</string>
     <string name="f_close">Close</string>
     <string name="f_hint_food">rendu idli oru vadai sambar</string>
@@ -28,13 +28,14 @@
     <string name="f_drinks_title">Drinks · tap to add</string>
     <string name="f_which_meal">Which meal? · tap one</string>
     <string name="f_cheat_meal">🍕 Cheat meal</string>
-    <string name="f_btn_type_food">TYPE WHAT YOU ATE</string>
-    <string name="f_btn_add_drink">ADD A DRINK</string>
-    <string name="f_btn_pick_meal">PICK A MEAL ABOVE</string>
-    <string name="f_btn_add_to">ADD TO %1$s</string>
-    <string name="f_btn_add_drinks">ADD %1$d DRINKS</string>
-    <string name="f_btn_add_drink_one">ADD 1 DRINK</string>
-    <string name="f_btn_save_weight">SAVE WEIGHT</string>
+    <string name="f_btn_type_food">Type what you ate</string>
+    <string name="f_btn_add_drink">Add a drink</string>
+    <string name="f_btn_pick_meal">Pick a meal above</string>
+    <string name="f_btn_add_to">Add %1$d items · %2$d kcal</string>
+    <string name="f_btn_add_one">Add 1 item · %1$d kcal</string>
+    <string name="f_btn_add_drinks">Add %1$d drinks</string>
+    <string name="f_btn_add_drink_one">Add 1 drink</string>
+    <string name="f_btn_save_weight">Save weight</string>
     <string name="f_build_plate">Build a plate instead →</string>
     <string name="f_tip_food">Try “3 chapathi chicken curry”, “half parotta 2 karandi salna” or “மூன்று இட்லி”</string>
     <string name="f_tip_liquid">Water goes to Liquids. Drinks with calories also count in the meal you pick.</string>

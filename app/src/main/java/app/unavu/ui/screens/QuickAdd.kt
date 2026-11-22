@@ -26,6 +26,10 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.ui.graphics.graphicsLayer
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.motionTween
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -90,6 +94,7 @@ private enum class Mode(val labelRes: Int) { FOOD(R.string.f_mode_food), LIQUID(
 @Composable
 fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val c = U.c
+    val reducedMotion = LocalReducedMotion.current
     val t = U.t
     val data = LocalData.current
     val nav = nav
@@ -121,21 +126,19 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val typed: List<Pair<String, NewItem>> = parsed.items.mapIndexed { i, it -> "$i:${it.food.id}".let { k -> k to (overrides[k] ?: it.toNew()) } }
     val all: List<Pair<String, NewItem>> = typed + comboItems.mapIndexed { i, it -> "combo$i" to it }
     val needsMeal = all.isNotEmpty()
+    val totalKcal = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal ?: 0.0 }.roundToInt()
+    var done by remember { mutableStateOf(false) }
+    val closeAfter: () -> Unit = { done = true }
+    LaunchedEffect(done) { if (done) { kotlinx.coroutines.delay(550); onDismiss() } }
+    val kcalShown by androidx.compose.animation.core.animateIntAsState(totalKcal, motionTween(Motion.LONG), label = "kcalCount")
 
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = c.bg, dragHandle = null) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
+        val enter = remember { androidx.compose.animation.core.Animatable(if (reducedMotion) 1f else 0f) }
+        LaunchedEffect(Unit) { enter.animateTo(1f, androidx.compose.animation.core.spring(dampingRatio = 0.8f, stiffness = 300f)) }
+        Column(Modifier.graphicsLayer { translationY = (1f - enter.value) * 28.dp.toPx(); alpha = enter.value.coerceIn(0f, 1f) }.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.clip(RoundedCornerShape(50)).background(c.sf2).padding(4.dp).selectableGroup()) {
-                    Mode.entries.forEach { m ->
-                        val on = m == mode
-                        Text(
-                            stringResource(m.labelRes), style = t.label, fontWeight = FontWeight.ExtraBold,
-                            color = if (on) c.onAcc else c.ink2,
-                            modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(50)).background(if (on) c.acc else Color.Transparent)
-                                .selectable(selected = on, role = Role.Tab) { modeName = m.name; text = ""; overrides.clear(); comboItems = emptyList() }
-                                .padding(horizontal = 16.dp, vertical = 12.dp),
-                        )
-                    }
+                SlidingSegments(Mode.entries, mode, { stringResource(it.labelRes) }) { m ->
+                    modeName = m.name; text = ""; overrides.clear(); comboItems = emptyList()
                 }
                 Spacer(Modifier.weight(1f))
                 ArrowButton(Arrow.CLOSE, contentDescription = stringResource(R.string.f_close), onClick = onDismiss)
@@ -196,12 +199,12 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                         }
                     }
                     if (all.isNotEmpty()) {
-                        val total = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal ?: 0.0 }.roundToInt()
+                        
                         AppCard(padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
-                            all.forEach { (key, item) -> ParsedRow(item) { editingKey = key } }
+                            all.forEachIndexed { n, (key, item) -> androidx.compose.runtime.key(key) { StaggerIn(n) { ParsedRow(item) { editingKey = key } } } }
                             Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp)) {
                                 Text(stringResource(R.string.f_total_hint), color = c.ink2, style = t.caption, modifier = Modifier.weight(1f))
-                                Text(stringResource(R.string.f_kcal, total), style = t.bodyS, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.f_kcal, kcalShown), style = t.bodyS, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -255,11 +258,11 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                         text = when {
                             count == 0 -> stringResource(if (mode == Mode.FOOD) R.string.f_btn_type_food else R.string.f_btn_add_drink)
                             needsMeal && meal == null -> stringResource(R.string.f_btn_pick_meal)
-                            mode == Mode.FOOD -> stringResource(R.string.f_btn_add_to, meal!!.label.uppercase())
+                            mode == Mode.FOOD -> if (all.size == 1) stringResource(R.string.f_btn_add_one, totalKcal) else stringResource(R.string.f_btn_add_to, all.size, totalKcal)
                             count == 1 -> stringResource(R.string.f_btn_add_drink_one)
                             else -> stringResource(R.string.f_btn_add_drinks, count)
                         },
-                        enabled = canAdd,
+                        enabled = canAdd, success = done,
                     ) {
                         val before = store.data.value
                         val names = all.mapNotNull { FoodDb.get(it.second.foodId)?.name }
@@ -269,7 +272,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                         val msg = if (names.isNotEmpty()) ctx.getString(R.string.f_added_to, names.joinToString(", "), meal!!.label)
                         else ctx.getString(R.string.f_water_snack, waterMl)
                         feedback?.show(msg, ctx.getString(R.string.f_undo)) { store.restoreSnapshot(before) }
-                        onDismiss()
+                        closeAfter()
                     }
                     Text(
                         stringResource(R.string.f_build_plate), style = t.label, fontWeight = FontWeight.Bold, color = c.accInk, textAlign = TextAlign.Center,
@@ -293,12 +296,12 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                     Spacer(Modifier.height(10.dp))
                     NumberField(waist, stringResource(R.string.f_waist_optional), Modifier.width(180.dp)) { waist = it }
                     Spacer(Modifier.height(12.dp))
-                    AddButton(stringResource(R.string.f_btn_save_weight), enabled = kg != null && kg in 20.0..300.0) {
+                    AddButton(stringResource(R.string.f_btn_save_weight), enabled = kg != null && kg in 20.0..300.0, success = done) {
                         val before = store.data.value
                         store.addWeight(date, kg!!, waist.toDoubleOrNull())
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
                         feedback?.show(ctx.getString(R.string.f_weight_saved, text.trim()), ctx.getString(R.string.f_undo)) { store.restoreSnapshot(before) }
-                        onDismiss()
+                        closeAfter()
                     }
                     Spacer(Modifier.height(16.dp))
                 }
