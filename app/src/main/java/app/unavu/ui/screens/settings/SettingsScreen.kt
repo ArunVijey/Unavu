@@ -115,7 +115,7 @@ fun SettingsScreen() {
                     "🔔",
                 ) { nav.push(Page.Reminders) }
                 Divider()
-                SettingsRow(stringResource(R.string.i_saved_combos), stringResource(R.string.i_in_meals_tab), "🍲") { nav.tab.value = Tab.MEALS }
+                SettingsRow(stringResource(R.string.i_saved_combos), stringResource(R.string.i_in_meals_tab), "🍲") { nav.home(); nav.tab.value = Tab.MEALS }
             }
             SectionLabel(stringResource(R.string.i_sec_about))
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {

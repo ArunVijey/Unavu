@@ -109,15 +109,15 @@ fun InsightsScreen() {
             }
             staggerItem("cards", "cards", 1) {
                 val diff = calc.avg.kcal.roundToInt() - t.kcal
-                val avgText = if (calc.counted.isEmpty()) "–" else "%,d".format(calc.avg.kcal.roundToInt())
-                val avgSub = if (calc.counted.isEmpty()) stringResource(R.string.g_ins_no_logs) else if (diff <= 0) stringResource(R.string.g_ins_under, -diff) else stringResource(R.string.g_ins_over, diff)
+                val avgText = if (!enough || calc.counted.isEmpty()) "–" else "%,d".format(calc.avg.kcal.roundToInt())
+                val avgSub = if (!enough || calc.counted.isEmpty()) stringResource(R.string.g_ins_no_logs) else if (diff <= 0) stringResource(R.string.g_ins_under, -diff) else stringResource(R.string.g_ins_over, diff)
                 val wText = wNow?.let { stringResource(R.string.g_kg, "%.1f".format(it)) } ?: "–"
                 val wSub = if (wNow != null && wThen != null) stringResource(if (wNow <= wThen) R.string.g_ins_w_down else R.string.g_ins_w_up, "%.1f".format(abs(wNow - wThen))) else stringResource(R.string.g_ins_log_weighins)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AppCard(Modifier.weight(1f), padding = PaddingValues(16.dp)) {
                         Text(stringResource(R.string.g_ins_avg_day), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2)
                         Text(avgText, style = U.t.headline)
-                        Text(avgSub, style = U.t.caption, fontWeight = FontWeight.Bold, color = if (diff <= 0 || calc.counted.isEmpty()) c.leafInk else c.chiInk)
+                        Text(avgSub, style = U.t.caption, fontWeight = FontWeight.Bold, color = if (diff <= 0 || !enough || calc.counted.isEmpty()) c.leafInk else c.chiInk)
                     }
                     AppCard(Modifier.weight(1f), padding = PaddingValues(16.dp), onClick = { nav.push(Page.Weight) }) {
                         Text(stringResource(R.string.g_ins_weight), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2)

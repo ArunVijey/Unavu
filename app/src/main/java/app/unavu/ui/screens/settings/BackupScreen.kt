@@ -104,7 +104,7 @@ fun BackupScreen() {
         TopBar(stringResource(R.string.i_backup), onBack = { nav.pop() })
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             val ok = b.lastOk && b.lastAt != null
-            AppCard(color = if (b.lastAt == null) c.sf2 else if (ok) c.leafS else c.chiS, border = null) {
+            AppCard(color = if (b.lastAt == null) c.sf2 else if (ok) c.leafS else c.chiS, border = null, onClick = if (b.folderUri == null) ({ pickFolder.launch(null) }) else null) {
                 Text(
                     when {
                         b.folderUri == null -> stringResource(R.string.i_pick_folder_start)
@@ -115,6 +115,7 @@ fun BackupScreen() {
                     style = U.t.body.iBold(), color = if (b.lastAt == null) c.ink else if (ok) c.leafInk else c.chiInk,
                 )
                 b.lastMessage?.let { Text(it, style = U.t.caption, color = c.ink2) }
+                if (b.folderUri == null) Text(stringResource(R.string.i_choose), color = c.accInk, style = U.t.label.iBold(), modifier = Modifier.padding(top = 6.dp))
             }
             PrimaryButton(stringResource(if (busy) R.string.i_backing_up else R.string.i_backup_now), enabled = b.folderUri != null && !busy) { runBackup() }
             if (b.folderUri == null) Text(stringResource(R.string.i_backup_needs_folder), style = U.t.caption, color = c.ink2)

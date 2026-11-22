@@ -45,7 +45,7 @@ import app.unavu.data.Meal
 import app.unavu.ui.AppCard
 import app.unavu.ui.Divider
 import app.unavu.ui.LocalData
-import app.unavu.ui.SecondaryButton
+import app.unavu.ui.PrimaryButton
 import app.unavu.ui.TimeDialog
 import app.unavu.ui.TopBar
 import app.unavu.ui.fmtTime
@@ -90,11 +90,11 @@ fun RemindersScreen() {
                 AppCard(color = c.chiS, border = null) {
                     Text(stringResource(R.string.i_notif_off_title), style = U.t.titleS.iBold(), color = c.chiInk, modifier = Modifier.semantics { heading() })
                     Text(stringResource(R.string.i_notif_off_text), style = U.t.bodyS, color = c.ink, modifier = Modifier.padding(top = 2.dp, bottom = 10.dp))
-                    SecondaryButton(stringResource(if (canAsk()) R.string.i_notif_allow else R.string.i_notif_open_settings)) { ensurePermission() }
+                    PrimaryButton(stringResource(if (canAsk()) R.string.i_notif_allow else R.string.i_notif_open_settings)) { ensurePermission() }
                 }
             }
-            AppCard(color = c.leafS, border = null) {
-                Text(stringResource(R.string.i_reminders_hint), style = U.t.bodyS.iBold(), color = c.leafInk)
+            AppCard(color = c.sf2, border = null) {
+                Text(stringResource(R.string.i_reminders_hint), style = U.t.bodyS, color = c.ink2)
             }
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
                 data.reminders.forEachIndexed { i, r ->

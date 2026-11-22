@@ -222,7 +222,7 @@ private fun SpringTrack(fraction: Float, color: androidx.compose.ui.graphics.Col
     LaunchedEffect(Unit) { shown = true }
     val f by animateFloatAsState(
         if (shown) fraction.coerceIn(0f, 1f) else 0f,
-        if (reduced) androidx.compose.animation.core.snap() else spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        app.unavu.ui.theme.motionSpring(Spring.DampingRatioMediumBouncy, Spring.StiffnessLow),
         label = "liquidFill",
     )
     Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(height)).background(U.c.sf2)) {

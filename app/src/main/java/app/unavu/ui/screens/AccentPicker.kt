@@ -89,7 +89,7 @@ fun AccentSection() {
     AppCard {
         Text(stringResource(R.string.i_accent_desc), style = U.t.bodyS, color = c.ink2)
         Spacer(Modifier.height(10.dp))
-        FlowRow(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        FlowRow(Modifier.fillMaxWidth().selectableGroup(), maxItemsInEachRow = 3, horizontalArrangement = Arrangement.SpaceBetween, verticalArrangement = Arrangement.spacedBy(4.dp)) {
             PRESETS.forEach { (nameRes, argb) -> Swatch(Color(argb), stringResource(nameRes), current == argb) { set(argb) } }
             val custom = PRESETS.none { it.second == current }
             Swatch(if (custom) Color(current) else null, stringResource(R.string.i_accent_custom), custom) { wheel = true }
@@ -102,8 +102,7 @@ fun AccentSection() {
 @Composable
 private fun Swatch(color: Color?, name: String, on: Boolean, onClick: () -> Unit) {
     val c = U.c
-    val reduced = app.unavu.ui.theme.LocalReducedMotion.current
-    val sc by androidx.compose.animation.core.animateFloatAsState(if (on) 1.12f else 1f, if (reduced) androidx.compose.animation.core.snap() else androidx.compose.animation.core.spring(0.55f, 500f), label = "swatchScale")
+    val sc by androidx.compose.animation.core.animateFloatAsState(if (on) 1.12f else 1f, app.unavu.ui.theme.motionSpring(0.55f, 500f), label = "swatchScale")
     val check by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else 0f, app.unavu.ui.theme.motionTween(app.unavu.ui.theme.Motion.MEDIUM), label = "swatchCheck")
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
