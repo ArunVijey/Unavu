@@ -13,8 +13,28 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.motionTween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -77,6 +97,7 @@ fun LiquidsScreen() {
     val goal = data.settings.waterGoalMl
     val undo = rememberUndoer(stringResource(R.string.g_undo)) { store.restoreSnapshot(it) }
     var editGoal by rememberSaveable { mutableStateOf(false) }
+    var chip by remember { mutableStateOf<Pair<Int, Int>?>(null) } // (id, ml)
 
     val s = remember(data.entries, data.water, data.settings.countDrinksAsWater, date) {
         val (water, drinksMl) = data.liquidsMl(date)
@@ -94,7 +115,7 @@ fun LiquidsScreen() {
 
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.g_liq_title, dayTitle(date)), onBack = { nav.pop() })
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "summary", contentType = "card") {
                 val totalL = "%.1f".format((s.water + s.drinksMl) / 1000.0)
                 AppCard {
@@ -112,7 +133,10 @@ fun LiquidsScreen() {
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Track(s.counted / goal.toFloat(), c.blue, height = 10.dp)
+                    Box {
+                        SpringTrack(s.counted / goal.toFloat(), c.blue, height = 10.dp)
+                        chip?.let { (id, ml) -> key(id) { FloatChip("+$ml ml", Modifier.align(Alignment.TopEnd)) } }
+                    }
                     Text(
                         stringResource(R.string.g_liq_goal_edit, "%.1f".format(goal / 1000.0)), style = U.t.label, color = c.ink2,
                         modifier = Modifier.heightIn(min = 48.dp).clickable(role = Role.Button) { editGoal = true }.padding(top = 12.dp),
@@ -129,6 +153,7 @@ fun LiquidsScreen() {
                         LiquidTile(e, n, stringResource(R.string.g_liq_plus_ml, ml), false, Modifier.weight(1f).semantics(mergeDescendants = true) { contentDescription = desc }) {
                             val before = store.data.value
                             store.addWater(date, ml)
+                            chip = (chip?.first ?: 0) + 1 to ml
                             undo.announce(added, before)
                         }
                     }
@@ -187,4 +212,37 @@ fun LiquidsScreen() {
             v.toDoubleOrNull()?.let { l -> store.update { d -> d.copy(settings = d.settings.copy(waterGoalMl = (l * 1000).roundToInt().coerceIn(500, 6000))) } }
         }
     }
+}
+
+/** Progress bar whose fill springs (slight overshoot) whenever the value changes. */
+@Composable
+private fun SpringTrack(fraction: Float, color: androidx.compose.ui.graphics.Color, height: Dp) {
+    val reduced = LocalReducedMotion.current
+    var shown by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { shown = true }
+    val f by animateFloatAsState(
+        if (shown) fraction.coerceIn(0f, 1f) else 0f,
+        if (reduced) androidx.compose.animation.core.snap() else spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "liquidFill",
+    )
+    Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(height)).background(U.c.sf2)) {
+        Box(Modifier.fillMaxWidth(f.coerceIn(0f, 1f)).fillMaxHeight().clip(RoundedCornerShape(height)).background(color))
+    }
+}
+
+/** A small "+250 ml" chip that floats up and fades out, once per composition. */
+@Composable
+private fun FloatChip(text: String, modifier: Modifier = Modifier) {
+    val reduced = LocalReducedMotion.current
+    val p = remember { Animatable(0f) }
+    val spec = motionTween<Float>(900)
+    LaunchedEffect(Unit) { if (!reduced) p.animateTo(1f, spec) else p.snapTo(1f) }
+    val alpha = if (p.value < 0.6f) 1f else (1f - (p.value - 0.6f) / 0.4f)
+    if (alpha <= 0.01f) return
+    val dy = with(androidx.compose.ui.platform.LocalDensity.current) { (-28.dp * p.value).roundToPx() }
+    Text(
+        text, style = U.t.caption, fontWeight = FontWeight.Bold, color = U.c.blueInk,
+        modifier = modifier.offset { IntOffset(0, dy - 4.dp.roundToPx()) }.graphicsLayer { this.alpha = alpha }
+            .clip(RoundedCornerShape(50)).background(U.c.blueS).padding(horizontal = 10.dp, vertical = 4.dp),
+    )
 }

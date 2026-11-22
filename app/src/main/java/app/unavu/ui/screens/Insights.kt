@@ -103,7 +103,7 @@ fun InsightsScreen() {
 
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.g_ins_title))
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "range", contentType = "range") {
                 Segmented(listOf(stringResource(R.string.g_ins_week), stringResource(R.string.g_ins_month), stringResource(R.string.g_ins_3months)), range) { range = it }
             }

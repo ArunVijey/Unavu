@@ -20,7 +20,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LocalTextStyle
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
+import app.unavu.ui.pressScale
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.motionTween
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,7 +63,6 @@ import app.unavu.ui.SectionLabel
 import app.unavu.ui.Segmented
 import app.unavu.ui.TamilText
 import app.unavu.ui.TopBar
-import app.unavu.ui.theme.Tnum
 import app.unavu.ui.theme.U
 
 private val ACTIVITIES = listOf(1.2 to R.string.i_act_desk, 1.375 to R.string.i_act_light, 1.55 to R.string.i_act_moderate, 1.725 to R.string.i_act_very)
@@ -83,6 +95,7 @@ fun AboutYouScreen(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(title, onBack)
         Column(Modifier.padding(horizontal = 16.dp)) {
+            StepBar(1, Modifier.padding(bottom = 8.dp))
             Text(stringResource(R.string.i_step_1_of_2), style = U.t.label, color = U.c.ink2, modifier = Modifier.padding(start = 2.dp, bottom = 2.dp))
             TamilText(stringResource(R.string.i_about_you_tamil), Modifier.padding(start = 2.dp))
             SectionLabel(stringResource(R.string.i_sex))
@@ -119,8 +132,11 @@ private fun fmt(d: Double) = if (d % 1.0 == 0.0) d.toInt().toString() else d.toS
 private fun NumberBox(value: String, label: String, error: String?, ime: ImeAction, modifier: Modifier, onChange: (String) -> Unit) {
     val c = U.c
     val shape = RoundedCornerShape(14.dp)
+    val interaction = remember { MutableInteractionSource() }
+    val focused by interaction.collectIsFocusedAsState()
+    val borderColor by animateColorAsState(if (error != null) c.chiInk else if (focused) c.acc else c.line, motionTween(Motion.SHORT), label = "numBorder")
     Column(
-        modifier.heightIn(min = 64.dp).clip(shape).background(c.sf).border(if (error != null) 2.dp else 1.dp, if (error != null) c.chiInk else c.line, shape)
+        modifier.pressScale().heightIn(min = 64.dp).clip(shape).background(c.sf).border(if (error != null || focused) 2.dp else 1.dp, borderColor, shape)
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         BasicTextField(
@@ -128,7 +144,8 @@ private fun NumberBox(value: String, label: String, error: String?, ime: ImeActi
             onValueChange = { v -> onChange(v.filter { it.isDigit() || it == '.' }.take(5)) },
             singleLine = true,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ime),
-            textStyle = LocalTextStyle.current.merge(U.t.headline).copy(fontWeight = FontWeight.ExtraBold, color = c.ink),
+            interactionSource = interaction,
+            textStyle = U.t.headline.copy(fontWeight = FontWeight.ExtraBold, color = c.ink),
             cursorBrush = SolidColor(c.acc),
             modifier = Modifier.fillMaxWidth().semantics {
                 contentDescription = label
@@ -147,13 +164,15 @@ fun TargetsScreen(profile: Profile, onBack: (() -> Unit)?, buttonText: String = 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_targets_title), onBack)
         Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            StepBar(2)
             Text(stringResource(R.string.i_step_2_of_2), style = U.t.label, color = c.ink2, modifier = Modifier.padding(start = 2.dp))
             TamilText(stringResource(R.string.i_targets_source_short), Modifier.padding(start = 2.dp))
             AppCard(color = c.leafS, border = null) {
                 Text(stringResource(R.string.i_eat_about), color = c.leafInk, style = U.t.label.copy(fontWeight = FontWeight.SemiBold))
-                Row(verticalAlignment = androidx.compose.ui.Alignment.Bottom) {
-                    Text("${t.kcal}", color = c.ink, style = U.t.display.copy(fontWeight = FontWeight.ExtraBold).merge(Tnum))
-                    Text("  " + stringResource(R.string.i_kcal_day), color = c.ink, style = U.t.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.padding(bottom = 6.dp))
+                val kcalShown by countUp(t.kcal.toFloat())
+                Row {
+                    Text("${kcalShown.toInt()}", color = c.ink, style = U.t.display.copy(fontWeight = FontWeight.ExtraBold), modifier = Modifier.alignByBaseline())
+                    Text("  " + stringResource(R.string.i_kcal_day), color = c.ink, style = U.t.body.copy(fontWeight = FontWeight.SemiBold), modifier = Modifier.alignByBaseline())
                 }
                 val goalText = when {
                     profile.goalKcal < 0 -> stringResource(R.string.i_goal_lose_text, -profile.goalKcal)
@@ -186,6 +205,32 @@ fun TargetsScreen(profile: Profile, onBack: (() -> Unit)?, buttonText: String = 
 fun KV(k: String, v: String) {
     Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(vertical = 9.dp), horizontalArrangement = Arrangement.SpaceBetween) {
         Text(k, style = U.t.body, color = U.c.ink)
-        Text(v, style = U.t.body.copy(fontWeight = FontWeight.Bold).merge(Tnum), color = U.c.ink)
+        Text(v, style = U.t.body.copy(fontWeight = FontWeight.Bold), color = U.c.ink)
+    }
+}
+
+/** Counts 0 -> target once when first composed (instant under reduced motion). */
+@Composable
+fun countUp(target: Float, durationMs: Int = 700): State<Float> {
+    val reduced = LocalReducedMotion.current
+    val a = remember { Animatable(if (reduced) target else 0f) }
+    val spec = motionTween<Float>(durationMs)
+    LaunchedEffect(target, reduced) { a.animateTo(target, spec) }
+    return a.asState()
+}
+
+/** Two-segment setup progress; segments fill with a tween (the active one animates in when it appears). */
+@Composable
+private fun StepBar(step: Int, modifier: Modifier = Modifier) {
+    val c = U.c
+    Row(modifier.fillMaxWidth().padding(horizontal = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        (1..2).forEach { i ->
+            val fill = remember { Animatable(if (i < step) 1f else 0f) }
+            val spec = motionTween<Float>(Motion.LONG)
+            LaunchedEffect(step) { fill.animateTo(if (step >= i) 1f else 0f, spec) }
+            Box(Modifier.weight(1f).height(5.dp).clip(CircleShape).background(c.line)) {
+                Box(Modifier.fillMaxHeight().fillMaxWidth(fill.value).background(c.acc, CircleShape))
+            }
+        }
     }
 }

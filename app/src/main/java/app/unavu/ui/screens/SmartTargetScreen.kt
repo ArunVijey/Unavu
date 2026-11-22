@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,13 +80,15 @@ fun SmartTargetScreen() {
 
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.g_smart_title), onBack = { nav.pop() })
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "now", contentType = "card") {
                 val sub = if (s.manualKcal != null && s.mode != SmartMode.AUTO) stringResource(R.string.g_smart_set_by_you) else stringResource(R.string.g_smart_burn, t.maintenance, t.burnSource)
+                val onLeaf = if (c.leaf.luminance() > 0.4f) androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.87f) else androidx.compose.ui.graphics.Color.White
+                val kcalShown by countUp(t.kcal.toFloat())
                 AppCard(color = c.leaf, border = null, modifier = Modifier.semantics(mergeDescendants = true) {}) {
-                    Text(stringResource(R.string.g_smart_now), color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.9f), style = U.t.label)
-                    Text(stringResource(R.string.g_kcal, t.kcal), color = androidx.compose.ui.graphics.Color.White, style = U.t.display)
-                    Text(sub, color = androidx.compose.ui.graphics.Color.White, style = U.t.caption)
+                    Text(stringResource(R.string.g_smart_now), color = onLeaf.copy(alpha = 0.85f), style = U.t.label)
+                    Text(stringResource(R.string.g_kcal, kcalShown.toInt()), color = onLeaf, style = U.t.display)
+                    Text(sub, color = onLeaf, style = U.t.caption)
                 }
             }
 
@@ -104,7 +107,7 @@ fun SmartTargetScreen() {
             }
 
             item(key = "how", contentType = "how") {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionLabel(stringResource(R.string.g_smart_how))
                     Segmented(listOf(stringResource(R.string.g_smart_auto), stringResource(R.string.g_smart_ask), stringResource(R.string.g_smart_manual)), s.mode.ordinal) { i ->
                         val m = SmartMode.entries[i]
@@ -118,7 +121,7 @@ fun SmartTargetScreen() {
             }
 
             item(key = "estimate", contentType = "card") {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionLabel(stringResource(R.string.g_smart_latest))
                     AppCard {
                         if (est == null) {
@@ -155,7 +158,7 @@ fun SmartTargetScreen() {
 
             if (s.history.isNotEmpty()) {
                 item(key = "history", contentType = "card") {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                         SectionLabel(stringResource(R.string.g_smart_weekly))
                         AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
                             val fmt = DateTimeFormatter.ofPattern("d MMM yyyy", Locale.ENGLISH)
@@ -168,7 +171,7 @@ fun SmartTargetScreen() {
             }
 
             item(key = "override", contentType = "card") {
-                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     SectionLabel(stringResource(R.string.g_smart_override))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(Modifier.weight(1f)) { SecondaryButton(stringResource(R.string.g_smart_set_own)) { editing = true } }

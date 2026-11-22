@@ -1,6 +1,10 @@
 package app.unavu.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.animateColorAsState
+import app.unavu.ui.pressScale
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.motionTween
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -93,7 +97,7 @@ fun HistoryScreen() {
 
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.g_hist_title), onBack = { nav.pop() })
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "month", contentType = "month") {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     ArrowButton(Arrow.LEFT, contentDescription = stringResource(R.string.g_hist_prev_month)) { month = ym.minusMonths(1).toString() }
@@ -136,13 +140,15 @@ fun HistoryScreen() {
                                         when (state) { DayState.ON -> append(", ").append(onLbl); DayState.UNDER -> append(", ").append(underLbl); DayState.OVER -> append(", ").append(overLbl); else -> {} }
                                         if (cheat) append(", ").append(cheatLbl)
                                     }
+                                    val bgAnim by animateColorAsState(if (on) c.ink else c.ink.copy(alpha = 0f), motionTween(Motion.SHORT), label = "dayBg")
+                                    val numAnim by animateColorAsState(if (on) c.bg else if (future) c.ink2.copy(alpha = 0.5f) else c.ink, motionTween(Motion.SHORT), label = "dayNum")
                                     Column(
-                                        Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp)).background(if (on) c.ink else Color.Transparent)
+                                        Modifier.weight(1f).pressScale().heightIn(min = 48.dp).clip(RoundedCornerShape(10.dp)).background(bgAnim)
                                             .semantics(mergeDescendants = true) { contentDescription = desc; this.selected = on }
                                             .clickable(enabled = !future, role = Role.Button) { selected = ds },
                                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
                                     ) {
-                                        Text("${d.dayOfMonth}", style = U.t.label, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = if (on) c.bg else if (future) c.ink2.copy(alpha = 0.5f) else c.ink)
+                                        Text("${d.dayOfMonth}", style = U.t.label, fontWeight = if (on) FontWeight.ExtraBold else FontWeight.SemiBold, color = numAnim)
                                         if (cheat) Text("🍕", style = U.t.caption) else Box(Modifier.padding(top = 2.dp).size(5.dp).clip(CircleShape).background(if (on && dot != Color.Transparent) c.bg else dot))
                                     }
                                 }

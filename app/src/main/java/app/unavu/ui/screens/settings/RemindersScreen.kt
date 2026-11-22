@@ -85,7 +85,7 @@ fun RemindersScreen() {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_reminders_title), onBack = { nav.pop() })
-        Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!allowed) {
                 AppCard(color = c.chiS, border = null) {
                     Text(stringResource(R.string.i_notif_off_title), style = U.t.titleS.iBold(), color = c.chiInk, modifier = Modifier.semantics { heading() })

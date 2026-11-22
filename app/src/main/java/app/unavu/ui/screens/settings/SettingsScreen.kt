@@ -53,7 +53,7 @@ fun SettingsScreen() {
     val t = data.targets() ?: return
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_settings_title))
-        Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppCard(onClick = { nav.push(Page.Profile) }) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(46.dp).clip(CircleShape).background(c.turS).clearAndSetSemantics { }, contentAlignment = Alignment.Center) { EmojiText("🙂", 22) }

@@ -103,7 +103,7 @@ fun BackupScreen() {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_backup), onBack = { nav.pop() })
-        Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             val ok = b.lastOk && b.lastAt != null
             AppCard(color = if (b.lastAt == null) c.sf2 else if (ok) c.leafS else c.chiS, border = null) {
                 Text(

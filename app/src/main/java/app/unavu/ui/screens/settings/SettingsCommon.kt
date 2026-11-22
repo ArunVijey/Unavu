@@ -32,6 +32,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.unavu.ui.EmojiText
+import app.unavu.ui.pressScale
 import app.unavu.ui.theme.U
 
 internal fun TextStyle.iBold() = copy(fontWeight = FontWeight.Bold)
@@ -57,7 +58,7 @@ fun SettingSwitchRow(
     val c = U.c
     val haptic = LocalHapticFeedback.current
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp)
+        Modifier.pressScale().fillMaxWidth().heightIn(min = 56.dp)
             .toggleable(value = checked, role = Role.Switch) { haptic.performHapticFeedback(HapticFeedbackType.ContextClick); onChange(it) }
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -83,7 +84,7 @@ fun SettingSwitchRow(
 fun SettingRadioRow(title: String, subtitle: String?, selected: Boolean, onSelect: () -> Unit) {
     val c = U.c
     Row(
-        Modifier.fillMaxWidth().heightIn(min = 56.dp)
+        Modifier.pressScale().fillMaxWidth().heightIn(min = 56.dp)
             .selectable(selected = selected, role = Role.RadioButton, onClick = onSelect)
             .padding(vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,

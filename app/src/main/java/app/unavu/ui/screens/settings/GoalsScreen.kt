@@ -62,7 +62,7 @@ fun GoalsScreen() {
     val chipsMin = stringResource(R.string.i_chips_min)
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.i_goal_targets), onBack = { nav.pop() })
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppCard(color = c.leafS, border = null) {
                 Text(stringResource(R.string.i_daily_target), color = c.leafInk, style = U.t.label.iBold())
                 Text(stringResource(R.string.i_kcal_big, t.kcal), color = c.ink, style = U.t.display.iBold())

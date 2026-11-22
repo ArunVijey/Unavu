@@ -28,7 +28,7 @@ fun AboutScreen() {
     val nav = nav
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_about_title), onBack = { nav.pop() })
-        Column(Modifier.padding(horizontal = 18.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             AppCard {
                 Text(stringResource(R.string.i_about_app), style = U.t.titleS.iBold(), color = c.ink)
                 Text(stringResource(R.string.i_about_app_text), style = U.t.bodyS, color = c.ink2)

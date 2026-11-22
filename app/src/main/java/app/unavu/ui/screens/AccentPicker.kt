@@ -30,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -101,18 +102,27 @@ fun AccentSection() {
 @Composable
 private fun Swatch(color: Color?, name: String, on: Boolean, onClick: () -> Unit) {
     val c = U.c
+    val sc by androidx.compose.animation.core.animateFloatAsState(if (on) 1.12f else 1f, androidx.compose.animation.core.spring(0.55f, 500f), label = "swatchScale")
+    val check by androidx.compose.animation.core.animateFloatAsState(if (on) 1f else 0f, app.unavu.ui.theme.motionTween(app.unavu.ui.theme.Motion.MEDIUM), label = "swatchCheck")
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.width(72.dp).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp))
             .selectable(selected = on, role = Role.RadioButton, onClick = onClick).padding(vertical = 4.dp),
     ) {
         Box(
-            Modifier.size(44.dp).clip(CircleShape)
+            Modifier.size(44.dp).graphicsLayer { scaleX = sc; scaleY = sc }.clip(CircleShape)
                 .then(if (color == null) Modifier.background(Brush.sweepGradient(HUES)) else Modifier.background(color))
                 .border(if (on) 3.dp else 0.dp, if (on) c.ink else Color.Transparent, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            if (on) Box(Modifier.size(12.dp).clip(CircleShape).background(if ((color ?: Color.White).luminanceSafe() > 0.42f) Color.Black else Color.White))
+            val tick = if ((color ?: Color.White).luminanceSafe() > 0.42f) Color.Black else Color.White
+            androidx.compose.foundation.Canvas(Modifier.size(22.dp)) {
+                val p = androidx.compose.ui.graphics.Path().apply { moveTo(size.width * 0.22f, size.height * 0.52f); lineTo(size.width * 0.43f, size.height * 0.72f); lineTo(size.width * 0.78f, size.height * 0.30f) }
+                val seg = androidx.compose.ui.graphics.PathMeasure().apply { setPath(p, false) }
+                val out = androidx.compose.ui.graphics.Path()
+                seg.getSegment(0f, seg.length * check, out, true)
+                if (check > 0f) drawPath(out, tick, style = Stroke(2.5.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round))
+            }
         }
         Text(name, style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
     }

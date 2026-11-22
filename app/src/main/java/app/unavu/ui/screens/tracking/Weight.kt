@@ -78,7 +78,7 @@ fun WeightScreen() {
         TopBar(stringResource(R.string.g_wt_title), onBack = { nav.pop() }) {
             IconCircle("＋", contentDescription = stringResource(R.string.g_wt_add)) { nav.quickAdd.value = QuickAddRequest(mode = "WEIGHT") }
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             item(key = "summary", contentType = "card") {
                 AppCard {
                     Row(verticalAlignment = Alignment.Bottom) {
