@@ -79,7 +79,7 @@ import app.unavu.ui.theme.U
 /** Four meal chips. Nothing is picked until the user taps one (no guessing from the clock). */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun MealPicker(selected: Meal?, modifier: Modifier = Modifier, onSelect: (Meal) -> Unit) {
+fun MealPicker(selected: Meal?, modifier: Modifier = Modifier, cheatLabel: String? = null, cheat: Boolean = false, onCheat: (() -> Unit)? = null, onSelect: (Meal) -> Unit) {
     val c = U.c
     FlowRow(modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) {
         Meal.entries.forEach { m ->
@@ -88,6 +88,15 @@ fun MealPicker(selected: Meal?, modifier: Modifier = Modifier, onSelect: (Meal) 
                 Text(
                     "${m.emoji} ${m.label}", style = U.t.label, color = if (on) c.accInk else c.ink,
                     modifier = Modifier.edge(if (on) c.acc else Color.Transparent, 50.dp, 1.5.dp, seed = m.ordinal).clip(RoundedCornerShape(50)).background(if (on) c.accS else c.sf2)
+                        .padding(horizontal = 13.dp, vertical = 9.dp),
+                )
+            }
+        }
+        if (cheatLabel != null && onCheat != null) {
+            Box(Modifier.heightIn(min = 48.dp).pressScale().selectable(selected = cheat, role = Role.Checkbox) { onCheat() }, contentAlignment = Alignment.Center) {
+                Text(
+                    cheatLabel, style = U.t.label, color = if (cheat) c.accInk else c.ink,
+                    modifier = Modifier.edge(if (cheat) c.acc else Color.Transparent, 50.dp, 1.5.dp, seed = 9).clip(RoundedCornerShape(50)).background(if (cheat) c.accS else c.sf2)
                         .padding(horizontal = 13.dp, vertical = 9.dp),
                 )
             }

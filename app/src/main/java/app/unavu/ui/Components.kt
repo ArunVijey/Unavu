@@ -177,9 +177,9 @@ fun SlidingSegmented(options: List<String>, selected: Int, modifier: Modifier = 
 /** Centred empty state: big emoji, title, body, optional action. */
 @Composable
 fun EmptyState(emoji: String, title: String, body: String, actionLabel: String? = null, modifier: Modifier = Modifier, onAction: (() -> Unit)? = null) {
-    Column(modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.size(88.dp).clip(CircleShape).background(U.c.sf2), contentAlignment = Alignment.Center) { EmojiText(emoji, 42) }
-        Spacer(Modifier.height(6.dp))
+    Column(modifier.fillMaxWidth().padding(horizontal = 32.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        EmptyIllustration(emoji)
+        Spacer(Modifier.height(10.dp))
         Text(title, style = U.t.title, textAlign = TextAlign.Center)
         Text(body, style = U.t.bodyS, color = U.c.ink2, textAlign = TextAlign.Center)
         if (actionLabel != null && onAction != null) {
@@ -573,6 +573,38 @@ fun PlusRingButton(contentDescription: String?, modifier: Modifier = Modifier, o
             val a = size.width * 0.17f; val m = size.width / 2
             drawLine(ink, Offset(m - a, m), Offset(m + a, m), 2.2.dp.toPx(), StrokeCap.Round)
             drawLine(ink, Offset(m, m - a), Offset(m, m + a), 2.2.dp.toPx(), StrokeCap.Round)
+        }
+    }
+}
+
+/** Line-drawn illustration for [EmptyState]: a chart for 📊/📈, otherwise a bowl with steam. */
+@Composable
+private fun EmptyIllustration(hint: String) {
+    val ink = U.c.ink2; val acc = U.c.acc; val fill = U.c.sf2
+    val chart = hint.startsWith("📊") || hint.startsWith("📈")
+    Canvas(Modifier.size(132.dp).clearAndSetSemantics {}) {
+        val w = size.width; val sw = 3.dp.toPx()
+        val st = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
+        drawCircle(fill, radius = w * 0.48f, center = center)
+        if (chart) {
+            val axis = Path().apply { moveTo(w * 0.24f, w * 0.24f); lineTo(w * 0.24f, w * 0.76f); lineTo(w * 0.78f, w * 0.76f) }
+            drawPath(axis, ink, style = st)
+            val line = Path().apply { moveTo(w * 0.32f, w * 0.64f); lineTo(w * 0.45f, w * 0.50f); lineTo(w * 0.56f, w * 0.58f); lineTo(w * 0.72f, w * 0.36f) }
+            drawPath(line, acc, style = st)
+            drawCircle(acc, radius = 4.dp.toPx(), center = Offset(w * 0.72f, w * 0.36f))
+        } else {
+            val bowl = Path().apply {
+                moveTo(w * 0.22f, w * 0.52f); lineTo(w * 0.78f, w * 0.52f)
+                cubicTo(w * 0.78f, w * 0.74f, w * 0.64f, w * 0.80f, w * 0.50f, w * 0.80f)
+                cubicTo(w * 0.36f, w * 0.80f, w * 0.22f, w * 0.74f, w * 0.22f, w * 0.52f)
+            }
+            drawPath(bowl, ink, style = st)
+            drawLine(ink, Offset(w * 0.38f, w * 0.86f), Offset(w * 0.62f, w * 0.86f), sw, StrokeCap.Round)
+            listOf(0.38f, 0.50f, 0.62f).forEachIndexed { i, x ->
+                val y = w * (0.40f - 0.04f * (i % 2))
+                val steam = Path().apply { moveTo(w * x, w * 0.46f); cubicTo(w * (x - 0.05f), y + w * 0.03f, w * (x + 0.05f), y, w * x, y - w * 0.08f) }
+                drawPath(steam, acc, style = st)
+            }
         }
     }
 }

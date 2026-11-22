@@ -62,6 +62,7 @@ import app.unavu.data.Targets
 import app.unavu.data.food
 import app.unavu.data.isCheatDay
 import app.unavu.data.today
+import app.unavu.data.total
 import app.unavu.ui.AppCard
 import app.unavu.ui.Arrow
 import app.unavu.ui.ArrowButton
@@ -206,15 +207,23 @@ fun NextUpCard(date: String, byMeal: Map<Meal, List<LogEntry>>, left: Int, total
     if (nextNow != null) last[0] = nextNow
     val next = nextNow ?: last[0]
     if (next == null) return
-    val proteinLow = total.protein < t.protein * 0.6
+    val split = app.unavu.ui.LocalData.current.settings.mealSplit
+    val budget = (t.kcal * (split.getOrNull(next.ordinal) ?: 0.25)).toInt()
+    val tip = when {
+        total.kcal <= 0.0 -> stringResource(R.string.d_next_up_tap, next.label.lowercase())
+        total.protein < t.protein * 0.6 -> stringResource(tipRes(next, 0))
+        total.fibre < t.fibre * 0.5 -> stringResource(tipRes(next, 1))
+        total.iron < t.iron * 0.5 -> stringResource(tipRes(next, 2))
+        else -> stringResource(tipRes(next, 3))
+    }
     AnimatedVisibility(nextNow != null, enter = expandVertically(motionTween(Motion.MEDIUM)) + fadeIn(motionTween(Motion.MEDIUM)), exit = shrinkVertically(motionTween(Motion.MEDIUM)) + fadeOut(motionTween(Motion.SHORT))) {
         AppCard(color = c.turS, border = null, onClick = { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); nav.push(Page.Plate(next, date)) }) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Emoji(next.emoji, 44)
                 Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.d_next_up_title, next.label, left.coerceAtLeast(0)), style = U.t.body, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.d_next_up_budget, next.label, byMeal.getValue(next).total().kcal.toInt(), budget), style = U.t.body, fontWeight = FontWeight.Bold)
                     Text(
-                        if (proteinLow) stringResource(R.string.d_next_up_low_protein) else stringResource(R.string.d_next_up_tap, next.label.lowercase()),
+                        tip,
                         style = U.t.caption, color = c.ink2,
                     )
                 }
@@ -232,3 +241,10 @@ fun LegendDot(color: Color, label: String) {
         Text(label, style = U.t.caption, color = U.c.ink2, fontWeight = FontWeight.SemiBold)
     }
 }
+
+private fun tipRes(m: Meal, gap: Int): Int = when (m) {
+    Meal.BREAKFAST -> intArrayOf(R.string.d_tip_b_protein, R.string.d_tip_b_fibre, R.string.d_tip_b_iron, R.string.d_tip_b_ok)
+    Meal.LUNCH -> intArrayOf(R.string.d_tip_l_protein, R.string.d_tip_l_fibre, R.string.d_tip_l_iron, R.string.d_tip_l_ok)
+    Meal.SNACKS -> intArrayOf(R.string.d_tip_s_protein, R.string.d_tip_s_fibre, R.string.d_tip_s_iron, R.string.d_tip_s_ok)
+    Meal.DINNER -> intArrayOf(R.string.d_tip_d_protein, R.string.d_tip_d_fibre, R.string.d_tip_d_iron, R.string.d_tip_d_ok)
+}[gap]

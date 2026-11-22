@@ -134,10 +134,10 @@ import kotlin.math.roundToInt
 
 fun mealColors(c: AppColors): List<Color> = listOf(c.tur, c.leaf, c.m3, c.blue)
 
-fun statusOf(d: app.unavu.data.NutrientDef, have: Double, target: Double): Status = if (d.limit) {
+fun statusOf(d: app.unavu.data.NutrientDef, have: Double, target: Double, pace: Double = 1.0): Status = if (d.limit) {
     if (have > target) Status.OVER else Status.OK
 } else {
-    if (have >= target * 0.9) Status.OK else Status.LOW
+    if (have >= target * 0.9 * pace.coerceIn(0.0, 1.0)) Status.OK else Status.LOW
 }
 
 /** Whole numbers from 10 up (53.3 → 53), one decimal below 10 (2.4 mg iron). */
@@ -292,32 +292,9 @@ fun TodayScreen() {
                 Box(Modifier.animateItem().staggerIn(2, seen).then(dayFade)) { NextUpCard(date, byMeal, left, total, t) }
             }
 
-            // ---------- Liquids ----------
-            item(key = "liquids", contentType = "liquids") {
-                val (water, drinks) = data.liquidsMl(date)
-                val goal = data.settings.waterGoalMl
-                val liqSub = stringResource(R.string.d_liquids_sub, fmtL(water), fmtL(goal), drinks)
-                AppCard(Modifier.animateItem().staggerIn(3, seen).then(dayFade)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Column(
-                            Modifier.weight(1f).heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Liquids) },
-                            verticalArrangement = Arrangement.Center,
-                        ) {
-                            Text(stringResource(R.string.d_liquids_title, fmtL(water + drinks)), style = U.t.body, fontWeight = FontWeight.Bold)
-                            Text(liqSub, style = U.t.caption, color = c.ink2)
-                        }
-                        ActionChip(stringResource(R.string.d_plus_glass), c.blueInk, c.blueS, stringResource(R.string.d_plus_glass_desc)) {
-                            undoable(sGlass) { store.addWater(date, 250) }
-                        }
-                    }
-                    Spacer(Modifier.height(10.dp))
-                    Track(water / goal.toFloat(), c.blue, height = 8.dp, contentDescription = liqSub)
-                }
-            }
-
             // ---------- Meals ----------
             item(key = "meals", contentType = "meals") {
-                AppCard(Modifier.animateItem().staggerIn(4, seen).then(dayFade).animateContentSize(motionTween()), padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                AppCard(Modifier.animateItem().staggerIn(3, seen).then(dayFade).animateContentSize(motionTween()), padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
                     Meal.entries.forEachIndexed { i, m ->
                         if (i > 0) Divider()
                         val list = byMeal.getValue(m)
@@ -350,6 +327,29 @@ fun TodayScreen() {
                             else Text("$kcal", style = U.t.titleS, fontWeight = FontWeight.ExtraBold, color = c.ink)
                         }
                     }
+                }
+            }
+
+            // ---------- Liquids ----------
+            item(key = "liquids", contentType = "liquids") {
+                val (water, drinks) = data.liquidsMl(date)
+                val goal = data.settings.waterGoalMl
+                val liqSub = stringResource(R.string.d_liquids_sub, fmtL(water), fmtL(goal), drinks)
+                AppCard(Modifier.animateItem().staggerIn(4, seen).then(dayFade)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(
+                            Modifier.weight(1f).heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Liquids) },
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text(stringResource(R.string.d_liquids_title, fmtL(water + drinks)), style = U.t.body, fontWeight = FontWeight.Bold)
+                            Text(liqSub, style = U.t.caption, color = c.ink2)
+                        }
+                        ActionChip(stringResource(R.string.d_plus_glass), c.blueInk, c.blueS, stringResource(R.string.d_plus_glass_desc)) {
+                            undoable(sGlass) { store.addWater(date, 250) }
+                        }
+                    }
+                    Spacer(Modifier.height(10.dp))
+                    Track(water / goal.toFloat(), c.blue, height = 8.dp, contentDescription = liqSub)
                 }
             }
 
@@ -524,7 +524,7 @@ private fun BudgetHero(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 10.dp)) {
                 row.forEach { d ->
                     val have = d.value(total); val target = d.target(tg)
-                    NutrientChip(d, have, target, statusOf(d, have, target), Modifier.weight(1f), logged = eaten > 0) { onChip(d) }
+                    NutrientChip(d, have, target, statusOf(d, have, target, eaten / kcal.toDouble()), Modifier.weight(1f), logged = eaten >= kcal * 0.3) { onChip(d) }
                 }
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
