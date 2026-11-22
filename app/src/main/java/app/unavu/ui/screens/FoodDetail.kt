@@ -18,9 +18,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,11 +64,15 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
     val data = LocalData.current
     val food = FoodDb.get(page.foodId) ?: run { nav.pop(); return }
     val p = data.portions[food.id]
-    var unit by remember { mutableStateOf(p?.unit?.takeIf { u -> food.units.any { it.name == u } } ?: food.units.first().name) }
-    var qty by remember { mutableStateOf(p?.qty ?: food.defaultQty) }
+    var unit by rememberSaveable { mutableStateOf(p?.unit?.takeIf { u -> food.units.any { it.name == u } } ?: food.units.first().name) }
+    var qty by rememberSaveable { mutableStateOf(p?.qty ?: food.defaultQty) }
     var choices by remember { mutableStateOf(food.resolve(p?.choices ?: emptyMap())) }
-    var meal by remember { mutableStateOf(page.meal) }
-    var customise by remember { mutableStateOf(false) }
+    var mealName by rememberSaveable { mutableStateOf(page.meal?.name) }
+    val meal = mealName?.let { nm -> app.unavu.data.Meal.entries.firstOrNull { it.name == nm } }
+    val feedback = app.unavu.ui.LocalFeedback.current
+    val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val ctx = androidx.compose.ui.platform.LocalContext.current
+    var customise by rememberSaveable { mutableStateOf(false) }
     val n = food.nutrFor(qty, unit, choices)
     val t = data.targets()
 
@@ -75,7 +82,7 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Emoji(food.emoji, 54)
                 Column {
-                    Text(food.name, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+                    Text(food.name, style = U.t.title, fontWeight = FontWeight.Bold)
                     if (food.tamil.isNotBlank()) TamilText(food.tamil)
                     StatusBadge(food.source.label, Status.INFO, Modifier.padding(top = 3.dp))
                 }
@@ -96,21 +103,21 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                         listOf(Triple(c.leaf, "Protein", n.protein * 4), Triple(c.tur, "Carbs", n.carbs * 4), Triple(c.m3, "Fat", n.fat * 9)).forEach { (col, name, kc) ->
                             Row(Modifier.fillMaxWidth().padding(vertical = 3.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Box(Modifier.size(9.dp).padding(0.dp)) { Canvas(Modifier.size(9.dp)) { drawCircle(col) } }
-                                Text("  $name", fontSize = 13.sp, modifier = Modifier.weight(1f))
-                                Text("${"%.1f".format(kc / (if (name == "Fat") 9 else 4))} g", fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                Text("  ${(kc / tot * 100).roundToInt()}%", fontSize = 12.sp, color = c.ink2)
+                                Text("  $name", style = U.t.bodyS, modifier = Modifier.weight(1f))
+                                Text("${"%.1f".format(kc / (if (name == "Fat") 9 else 4))} g", fontWeight = FontWeight.Bold, style = U.t.bodyS)
+                                Text("  ${(kc / tot * 100).roundToInt()}%", style = U.t.caption, color = c.ink2)
                             }
                         }
                     }
                 }
                 val summary = food.choiceSummary(choices)
-                if (summary.isNotBlank()) Text(summary, fontSize = 11.5.sp, color = c.leafInk, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
+                if (summary.isNotBlank()) Text(summary, style = U.t.caption, color = c.leafInk, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 6.dp))
                 val n100 = food.nutrFor(100.0, if (food.liquid) "ml" else "g", choices)
                 Text(
                     "Per 100 ${if (food.liquid) "ml" else "g"}: ${n100.kcal.roundToInt()} kcal · P ${"%.1f".format(n100.protein)} g · C ${"%.1f".format(n100.carbs)} g · F ${"%.1f".format(n100.fat)} g · fibre ${"%.1f".format(n100.fibre)} g",
-                    fontSize = 12.sp, color = c.ink2, modifier = Modifier.padding(top = 6.dp),
+                    style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 6.dp),
                 )
-                Text("Amount: ${app.unavu.data.fmtQty(qty)} ${app.unavu.data.unitLabel(unit, qty)} ≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}", fontSize = 11.5.sp, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
+                Text("Amount: ${app.unavu.data.fmtQty(qty)} ${app.unavu.data.unitLabel(unit, qty)} ≈ ${(qty * food.unit(unit).grams).roundToInt()} ${if (food.liquid) "ml" else "g"}", style = U.t.caption, color = c.ink2, modifier = Modifier.padding(top = 4.dp))
             }
             if (t != null) {
                 AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
@@ -118,9 +125,9 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                     NUTRIENTS.forEach { d ->
                         val v = d.value(n); val tv = d.target(t)
                         Row(Modifier.fillMaxWidth().padding(top = 5.dp)) {
-                            Text(d.name, fontSize = 12.5.sp, modifier = Modifier.weight(1f))
-                            Text("${if (v < 10) "%.1f".format(v) else v.roundToInt().toString()} ${d.unit}", fontWeight = FontWeight.Bold, fontSize = 12.5.sp)
-                            Text("  ${(v / tv * 100).roundToInt()}%", fontSize = 12.sp, color = c.ink2)
+                            Text(d.name, style = U.t.bodyS, modifier = Modifier.weight(1f))
+                            Text("${if (v < 10) "%.1f".format(v) else v.roundToInt().toString()} ${d.unit}", fontWeight = FontWeight.Bold, style = U.t.bodyS)
+                            Text("  ${(v / tv * 100).roundToInt()}%", style = U.t.caption, color = c.ink2)
                         }
                         Track((v / tv).toFloat(), if (d.limit) c.chi else c.leaf, Modifier.padding(top = 3.dp, bottom = 3.dp), height = 5.dp)
                     }
@@ -135,19 +142,22 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
                     if (i > 0) Divider()
                     val ing = FoodDb.ingredient(k)
                     Row(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-                        Text(ing?.name ?: k, fontSize = 12.5.sp, modifier = Modifier.weight(1f))
-                        Text("${"%.1f".format(g * factor)} g", fontSize = 12.5.sp, fontWeight = FontWeight.Bold)
+                        Text(ing?.name ?: k, style = U.t.bodyS, modifier = Modifier.weight(1f))
+                        Text("${"%.1f".format(g * factor)} g", style = U.t.bodyS, fontWeight = FontWeight.Bold)
                     }
                 }
                 Text(
                     if (food.category == "My foods") "Your own values (My foods)." else if (food.source == app.unavu.data.FoodSource.CUSTOM) "Your recipe." else "Calculated from IFCT 2017 (ICMR-NIN) ingredient values; batch and cooked weight are typical home amounts.",
-                    fontSize = 10.5.sp, color = c.ink2, modifier = Modifier.padding(vertical = 6.dp),
+                    style = U.t.caption, color = c.ink2, modifier = Modifier.padding(vertical = 6.dp),
                 )
             }
             SectionLabel("Add to")
-            MealPicker(meal) { meal = it }
+            MealPicker(meal) { mealName = it.name }
             PrimaryButton(if (meal == null) "Pick a meal above" else "＋ Add to ${meal!!.label}", enabled = meal != null) {
+                val before = nav.store.data.value
                 nav.store.logItems(listOf(NewItem(food.id, qty, unit, choices)), meal!!, nav.date.value, cheat = false)
+                haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.Confirm)
+                feedback?.show(ctx.getString(app.unavu.R.string.f_added_to, food.name, meal.label), ctx.getString(app.unavu.R.string.f_undo)) { nav.store.restoreSnapshot(before) }
                 nav.pop()
             }
             Spacer(Modifier.height(24.dp))
@@ -164,7 +174,8 @@ fun FoodDetailScreen(page: Page.FoodDetail) {
 fun MacroDonut(p: Double, cb: Double, f: Double, kcal: Int) {
     val c = U.c
     val tot = (p + cb + f).coerceAtLeast(1.0)
-    Box(Modifier.size(92.dp), contentAlignment = Alignment.Center) {
+    val desc = "${kcal} kcal: protein ${(p / 4).roundToInt()} g, carbs ${(cb / 4).roundToInt()} g, fat ${(f / 9).roundToInt()} g"
+    Box(Modifier.size(92.dp).semantics(mergeDescendants = true) { contentDescription = desc }, contentAlignment = Alignment.Center) {
         Canvas(Modifier.size(92.dp)) {
             val sw = 12.dp.toPx()
             val r = Size(size.width - sw, size.height - sw)
@@ -178,8 +189,8 @@ fun MacroDonut(p: Double, cb: Double, f: Double, kcal: Int) {
             }
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("$kcal", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp)
-            Text("kcal", fontSize = 9.sp, color = c.ink2)
+            Text("$kcal", fontWeight = FontWeight.ExtraBold, style = U.t.title)
+            Text("kcal", style = U.t.caption, color = c.ink2)
         }
     }
 }
