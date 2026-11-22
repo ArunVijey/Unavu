@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
@@ -131,27 +133,69 @@ fun Pill(text: String, selected: Boolean, modifier: Modifier = Modifier, onClick
 }
 
 @Composable
-fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
+fun Segmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) =
+    SlidingSegmented(options, selected, modifier, onSelect)
+
+/** Segmented control whose selected thumb slides (and crossfades label colour) between options. */
+@Composable
+fun SlidingSegmented(options: List<String>, selected: Int, modifier: Modifier = Modifier, onSelect: (Int) -> Unit) {
     val c = U.c
-    Row(
-        modifier.fillMaxWidth().selectableGroup().clip(RoundedCornerShape(12.dp)).background(c.sf2).padding(3.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
+    val n = options.size.coerceAtLeast(1)
+    val gap = 3.dp
+    val spec = app.unavu.ui.theme.motionTween<Float>(app.unavu.ui.theme.Motion.MEDIUM)
+    val pos by animateFloatAsState(selected.coerceIn(0, n - 1).toFloat(), spec, label = "segThumb")
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(c.sf2).padding(3.dp),
     ) {
-        options.forEachIndexed { i, label ->
-            val on = i == selected
-            Box(
-                Modifier
-                    .weight(1f)
-                    .heightIn(min = 48.dp)
-                    .clip(RoundedCornerShape(9.dp))
-                    .background(if (on) c.sf else Color.Transparent)
-                    .selectable(selected = on, role = Role.Tab) { onSelect(i) }
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(label, style = U.t.label, color = if (on) c.ink else c.ink2, textAlign = TextAlign.Center)
+        val slot = (maxWidth - gap * (n - 1)) / n
+        Box(
+            Modifier
+                .offset { androidx.compose.ui.unit.IntOffset(((slot + gap).toPx() * pos).toInt(), 0) }
+                .size(slot, 48.dp)
+                .clip(RoundedCornerShape(9.dp)).background(c.sf),
+        )
+        Row(Modifier.selectableGroup(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            options.forEachIndexed { i, label ->
+                val on = i == selected
+                val tc by androidx.compose.animation.animateColorAsState(if (on) c.ink else c.ink2, motionTween(app.unavu.ui.theme.Motion.SHORT), label = "segText")
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .heightIn(min = 48.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .selectable(selected = on, role = Role.Tab) { onSelect(i) }
+                        .padding(vertical = 8.dp, horizontal = 4.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(label, style = U.t.label, color = tc, textAlign = TextAlign.Center)
+                }
             }
         }
+    }
+}
+
+/** Centred empty state: big emoji, title, body, optional action. */
+@Composable
+fun EmptyState(emoji: String, title: String, body: String, actionLabel: String? = null, modifier: Modifier = Modifier, onAction: (() -> Unit)? = null) {
+    Column(modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 28.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.size(88.dp).clip(CircleShape).background(U.c.sf2), contentAlignment = Alignment.Center) { EmojiText(emoji, 42) }
+        Spacer(Modifier.height(6.dp))
+        Text(title, style = U.t.title, textAlign = TextAlign.Center)
+        Text(body, style = U.t.bodyS, color = U.c.ink2, textAlign = TextAlign.Center)
+        if (actionLabel != null && onAction != null) {
+            Spacer(Modifier.height(8.dp))
+            PrimaryButton(actionLabel, onClick = onAction)
+        }
+    }
+}
+
+/** Drawn right-pointing chevron for list rows. */
+@Composable
+fun ChevronIcon(color: Color = U.c.ink2, size: Dp = 18.dp, modifier: Modifier = Modifier) {
+    Canvas(modifier.size(size)) {
+        val w = this.size.width; val h = this.size.height
+        val p = Path().apply { moveTo(w * 0.36f, h * 0.2f); lineTo(w * 0.66f, h * 0.5f); lineTo(w * 0.36f, h * 0.8f) }
+        drawPath(p, color, style = Stroke(width = w * 0.12f, cap = StrokeCap.Round, join = StrokeJoin.Round))
     }
 }
 
@@ -366,7 +410,10 @@ fun ListRow(
             Text(title, style = U.t.body, fontWeight = FontWeight.Bold)
             if (subtitle != null) Text(subtitle, style = U.t.caption.copy(fontSize = 13.sp), color = U.c.ink2)
         }
-        if (end != null) end() else if (trailing != null) Text(trailing, style = U.t.body, color = U.c.ink2, modifier = Modifier.clearAndSetSemantics {})
+        if (end != null) end() else if (trailing != null) {
+            if (trailing == "›") ChevronIcon(modifier = Modifier.clearAndSetSemantics {})
+            else Text(trailing, style = U.t.body, color = U.c.ink2, modifier = Modifier.clearAndSetSemantics {})
+        }
     }
 }
 
