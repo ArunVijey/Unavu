@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="a_channel_name">Reminders</string>
+    <string name="a_channel_desc">Meal, water and weigh-in reminders</string>
+    <string name="a_notif_water_title">💧 Water time</string>
+    <string name="a_notif_water_body">Have a glass of water. Tap to add it.</string>
+    <string name="a_notif_weigh_title">⚖️ Morning weigh-in</string>
+    <string name="a_notif_weigh_body">Step on the scale before breakfast for the best trend.</string>
+    <string name="a_notif_meal_title">%1$s %2$s time</string>
+    <string name="a_notif_meal_body">Log your %1$s? Tap to open.</string>
+
+    <string name="a_widget_still_eat">CAN STILL EAT</string>
+    <string name="a_widget_over_by">OVER BY</string>
+    <string name="a_widget_left">LEFT</string>
+    <string name="a_widget_over">OVER</string>
+    <string name="a_widget_log_food">＋ Log food</string>
+    <string name="a_widget_water">💧 +1 glass</string>
+    <string name="a_widget_water_desc">Add one glass of water, 250 millilitres</string>
+    <string name="a_widget_log_food_desc">Log food</string>
+    <string name="a_widget_combo_desc">Log %1$s</string>
+    <string name="a_widget_no_profile">Set up your profile to see calories left</string>
+    <string name="a_widget_no_profile_desc">Open Unavu to set up your profile</string>
+    <string name="a_widget_summary">%1$d calories left. Protein %2$d of %3$d grams. Liquids %4$s litres.</string>
+    <string name="a_widget_summary_over">%1$d calories over. Protein %2$d of %3$d grams. Liquids %4$s litres.</string>
+    <string name="a_widget_open_today">Open today in Unavu</string>
+    <string name="a_tile_water">+1 glass</string>
+    <string name="a_tile_water_sub">%1$s L today</string>
+    <string name="a_tile_water_state">%1$s litres of liquids today. Tap to add a glass.</string>
+    <string name="a_tile_add">Log food</string>
+    <string name="a_tile_add_state">Opens Unavu to log food</string>
+</resources>

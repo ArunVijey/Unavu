@@ -38,7 +38,11 @@ class BackupWorker(ctx: Context, params: WorkerParameters) : CoroutineWorker(ctx
     override suspend fun doWork(): Result {
         val d = Store.get(applicationContext).data.value
         if (d.backup.folderUri == null) return Result.success()
-        return if (Backup.run(applicationContext).isSuccess) Result.success() else Result.retry()
+        val r = Backup.run(applicationContext)
+        if (r.isSuccess) return Result.success()
+        // IO errors (storage busy, card not ready) are worth retrying a few times; a lost folder permission is not
+        val io = r.exceptionOrNull()?.cause is java.io.IOException
+        return if (io && runAttemptCount < 3) Result.retry() else Result.success()
     }
 }
 
@@ -71,7 +75,7 @@ object Scheduler {
         Store.get(context).data.value.reminders.forEach { r ->
             val pi = pending(context, r.id)
             am.cancel(pi)
-            if (r.on) am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTrigger(r), pi)
+            if (r.on) try { am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, nextTrigger(r), pi) } catch (_: SecurityException) { }
         }
     }
 
@@ -97,9 +101,11 @@ object Scheduler {
 
     fun ensureChannel(context: Context) {
         val nm = context.getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "Reminders", NotificationManager.IMPORTANCE_DEFAULT).apply {
-            description = "Meal, water and weigh-in reminders"
-        })
+        nm.createNotificationChannel(
+            NotificationChannel(CHANNEL, context.getString(R.string.a_channel_name), NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = context.getString(R.string.a_channel_desc)
+            },
+        )
     }
 
     fun handle(context: Context, id: String) {
@@ -115,27 +121,28 @@ object Scheduler {
                 id == "weigh" -> d.weights.any { it.date == day }
                 else -> false
             }
-            if (!skip) notify(context, id, title(id), body(id, meal))
+            if (!skip) notify(context, id, title(context, id), body(context, id, meal))
         }
         scheduleReminders(context)
     }
 
-    private fun title(id: String) = when (id) {
-        "water" -> "💧 Water time"
-        "weigh" -> "⚖️ Morning weigh-in"
-        else -> Meal.entries.first { it.name.equals(id, true) }.let { "${it.emoji} ${it.label} time" }
+    private fun title(c: Context, id: String) = when (id) {
+        "water" -> c.getString(R.string.a_notif_water_title)
+        "weigh" -> c.getString(R.string.a_notif_weigh_title)
+        else -> Meal.entries.first { it.name.equals(id, true) }.let { c.getString(R.string.a_notif_meal_title, it.emoji, it.label) }
     }
 
-    private fun body(id: String, meal: Meal?) = when {
-        id == "water" -> "Have a glass of water. Tap to add it."
-        id == "weigh" -> "Step on the scale before breakfast for the best trend."
-        else -> "Log your ${meal!!.label.lowercase()}? Tap to open."
+    private fun body(c: Context, id: String, meal: Meal?) = when {
+        id == "water" -> c.getString(R.string.a_notif_water_body)
+        id == "weigh" -> c.getString(R.string.a_notif_weigh_body)
+        else -> c.getString(R.string.a_notif_meal_body, meal!!.label.lowercase())
     }
 
     private fun notify(context: Context, id: String, title: String, body: String) {
         if (Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
         ) return
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) return
         ensureChannel(context)
         val open = PendingIntent.getActivity(
             context, id.hashCode(),
@@ -147,22 +154,35 @@ object Scheduler {
             .setContentTitle(title).setContentText(body)
             .setContentIntent(open).setAutoCancel(true)
             .build()
-        NotificationManagerCompat.from(context).notify(id.hashCode(), n)
+        try { NotificationManagerCompat.from(context).notify(id.hashCode(), n) } catch (_: SecurityException) { }
     }
 
     fun extraId() = EXTRA_ID
 }
 
+/** Runs [block] on a background thread while keeping the receiver alive (Store loads off the main thread). */
+private fun BroadcastReceiver.async(block: () -> Unit) {
+    val pending = goAsync()
+    Thread {
+        try { block() } catch (t: Throwable) { android.util.Log.e("UnavuWork", "receiver failed", t) } finally { pending.finish() }
+    }.start()
+}
+
 class ReminderReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val id = intent.getStringExtra(Scheduler.extraId()) ?: return
-        Scheduler.handle(context, id)
+        val app = context.applicationContext
+        async { Scheduler.handle(app, id) }
     }
 }
 
+/** Boot, app update, clock change and time zone change: alarms are lost or wrong, so set them again. */
 class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        Scheduler.scheduleReminders(context)
-        Scheduler.scheduleBackup(context)
+        val app = context.applicationContext
+        async {
+            Scheduler.scheduleReminders(app)
+            Scheduler.scheduleBackup(app)
+        }
     }
 }
