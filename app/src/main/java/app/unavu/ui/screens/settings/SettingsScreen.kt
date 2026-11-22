@@ -32,7 +32,7 @@ import app.unavu.data.targets
 import app.unavu.ui.AppCard
 import app.unavu.ui.Divider
 import app.unavu.ui.EmojiText
-import app.unavu.ui.ListRow
+import app.unavu.ui.SectionLabel
 import app.unavu.ui.LocalData
 import app.unavu.ui.Page
 import app.unavu.ui.Tab
@@ -53,7 +53,7 @@ fun SettingsScreen() {
     val t = data.targets() ?: return
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_settings_title))
-        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(horizontal = 16.dp)) {
             AppCard(onClick = { nav.push(Page.Profile) }) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(46.dp).clip(CircleShape).background(c.turS).clearAndSetSemantics { }, contentAlignment = Alignment.Center) { EmojiText("🙂", 22) }
@@ -71,13 +71,14 @@ fun SettingsScreen() {
                     Text(stringResource(R.string.i_edit), color = c.accInk, style = U.t.label.iBold())
                 }
             }
+            SectionLabel(stringResource(R.string.i_sec_plan))
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
-                ListRow(stringResource(R.string.i_goal_targets), stringResource(R.string.i_goal_targets_sub, t.kcal), "🎯") { nav.push(Page.Goals) }
+                SettingsRow(stringResource(R.string.i_goal_targets), stringResource(R.string.i_goal_targets_sub, t.kcal), "🎯") { nav.push(Page.Goals) }
                 Divider()
-                ListRow(stringResource(R.string.i_my_portions), pluralStringResource(R.plurals.i_portions_remembered, data.portions.size, data.portions.size), "🥄") { nav.push(Page.Portions) }
+                SettingsRow(stringResource(R.string.i_my_portions), pluralStringResource(R.plurals.i_portions_remembered, data.portions.size, data.portions.size), "🥄") { nav.push(Page.Portions) }
                 Divider()
                 val custom = data.customFoods.count { it.facts != null }
-                ListRow(
+                SettingsRow(
                     stringResource(R.string.i_my_foods),
                     if (custom == 0) stringResource(R.string.i_my_foods_none) else stringResource(R.string.i_my_foods_n, custom),
                     "➕",
@@ -86,11 +87,12 @@ fun SettingsScreen() {
                 val smart = stringResource(
                     when (data.smart.mode) { SmartMode.AUTO -> R.string.i_smart_auto; SmartMode.ASK -> R.string.i_smart_ask; SmartMode.MANUAL -> R.string.i_smart_manual },
                 ) + if (data.smart.pendingBurn != null) stringResource(R.string.i_smart_pending) else ""
-                ListRow(stringResource(R.string.i_smart_target), smart, "🧠") { nav.push(Page.SmartTarget) }
+                SettingsRow(stringResource(R.string.i_smart_target), smart, "🧠") { nav.push(Page.SmartTarget) }
             }
+            SectionLabel(stringResource(R.string.i_sec_app))
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
                 val theme = stringResource(when (data.settings.theme) { ThemeMode.SYSTEM -> R.string.i_theme_system; ThemeMode.LIGHT -> R.string.i_theme_light; ThemeMode.DARK -> R.string.i_theme_dark })
-                ListRow(
+                SettingsRow(
                     stringResource(R.string.i_appearance),
                     "$theme${if (data.settings.amoled) stringResource(R.string.i_amoled_short) else ""} · ${data.settings.font.label}",
                     "🎨",
@@ -103,20 +105,21 @@ fun SettingsScreen() {
                     else -> stringResource(R.string.i_backup_last, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(b.lastAt))) +
                         if (!b.lastOk) stringResource(R.string.i_backup_failed_suffix) else ""
                 }
-                ListRow(stringResource(R.string.i_backup), sub, "📁") { nav.push(Page.Backup) }
+                SettingsRow(stringResource(R.string.i_backup), sub, "📁") { nav.push(Page.Backup) }
                 Divider()
                 val on = data.reminders.count { it.on }
                 val blocked = on > 0 && !notificationsAllowed(context)
-                ListRow(
+                SettingsRow(
                     stringResource(R.string.i_reminders),
                     stringResource(if (blocked) R.string.i_reminders_off_perm else R.string.i_reminders_on, on),
                     "🔔",
                 ) { nav.push(Page.Reminders) }
                 Divider()
-                ListRow(stringResource(R.string.i_saved_combos), stringResource(R.string.i_in_meals_tab), "🍲") { nav.tab.value = Tab.MEALS }
+                SettingsRow(stringResource(R.string.i_saved_combos), stringResource(R.string.i_in_meals_tab), "🍲") { nav.tab.value = Tab.MEALS }
             }
+            SectionLabel(stringResource(R.string.i_sec_about))
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
-                ListRow(stringResource(R.string.i_about_food), stringResource(R.string.i_about_food_sub, FoodDb.dishes.size), "ℹ️") { nav.push(Page.About) }
+                SettingsRow(stringResource(R.string.i_about_food), stringResource(R.string.i_about_food_sub, FoodDb.dishes.size), "ℹ️") { nav.push(Page.About) }
             }
             Spacer(Modifier.height(24.dp))
         }

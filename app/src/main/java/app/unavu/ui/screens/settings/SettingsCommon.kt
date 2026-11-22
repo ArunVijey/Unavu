@@ -31,8 +31,14 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.semantics
+import app.unavu.ui.ChevronIcon
 import app.unavu.ui.EmojiText
 import app.unavu.ui.pressScale
+import androidx.compose.ui.graphics.graphicsLayer
+import app.unavu.ui.theme.Motion
+import app.unavu.ui.theme.motionTween
 import app.unavu.ui.theme.U
 
 internal fun TextStyle.iBold() = copy(fontWeight = FontWeight.Bold)
@@ -41,7 +47,7 @@ internal fun TextStyle.iBold() = copy(fontWeight = FontWeight.Bold)
 @Composable
 private fun RowLead(emoji: String) {
     Box(
-        Modifier.size(34.dp).clip(RoundedCornerShape(10.dp)).background(U.c.sf2).clearAndSetSemantics { },
+        Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(U.c.accS).clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) { EmojiText(emoji, 17) }
 }
@@ -94,10 +100,12 @@ fun SettingRadioRow(title: String, subtitle: String?, selected: Boolean, onSelec
             Text(title, style = U.t.titleS.iBold(), color = c.ink)
             if (subtitle != null) Text(subtitle, style = U.t.bodyS, color = c.ink2)
         }
+        val ring by androidx.compose.animation.animateColorAsState(if (selected) c.acc else c.ink2, motionTween(Motion.SHORT), label = "radioRing")
+        val dot by androidx.compose.animation.core.animateFloatAsState(if (selected) 1f else 0f, motionTween(Motion.MEDIUM), label = "radioDot")
         Box(
-            Modifier.size(22.dp).clip(CircleShape).border(2.dp, if (selected) c.acc else c.ink2, CircleShape),
+            Modifier.size(22.dp).clip(CircleShape).border(2.dp, ring, CircleShape),
             contentAlignment = Alignment.Center,
-        ) { if (selected) Box(Modifier.size(11.dp).clip(CircleShape).background(c.acc)) }
+        ) { Box(Modifier.size(11.dp).graphicsLayer { scaleX = dot; scaleY = dot; alpha = dot }.clip(CircleShape).background(c.acc)) }
     }
 }
 
@@ -113,3 +121,38 @@ internal fun Context.findActivity(): ComponentActivity? {
 
 internal fun notificationsAllowed(context: Context): Boolean =
     androidx.core.app.NotificationManagerCompat.from(context).areNotificationsEnabled()
+
+/**
+ * Settings list row: 56dp+ target, leading emoji in a tinted 36dp rounded square, drawn chevron
+ * (or a [trailing] label when given). Press-scales and merges semantics when clickable.
+ */
+@Composable
+fun SettingsRow(
+    title: String,
+    subtitle: String? = null,
+    emoji: String? = null,
+    trailing: String? = null,
+    chevron: Boolean = trailing == null,
+    onClick: (() -> Unit)? = null,
+) {
+    val c = U.c
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 56.dp)
+            .then(
+                if (onClick != null) Modifier.pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button, onClick = onClick)
+                else Modifier,
+            )
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        if (emoji != null) RowLead(emoji)
+        Column(Modifier.weight(1f)) {
+            Text(title, style = U.t.titleS.iBold(), color = c.ink)
+            if (subtitle != null) Text(subtitle, style = U.t.bodyS, color = c.ink2)
+        }
+        if (trailing != null) Text(trailing, style = U.t.label, color = c.ink2, modifier = Modifier.clearAndSetSemantics {})
+        if (chevron && onClick != null) ChevronIcon(modifier = Modifier.clearAndSetSemantics {})
+    }
+}
+

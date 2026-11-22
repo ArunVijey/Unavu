@@ -37,6 +37,8 @@ import app.unavu.ui.AppCard
 import app.unavu.ui.Divider
 import app.unavu.ui.IconCircle
 import app.unavu.ui.InputDialog
+import app.unavu.ui.EmptyState
+import app.unavu.ui.SlidingSegmented
 import app.unavu.ui.LineChart
 import app.unavu.ui.LocalData
 import app.unavu.ui.QuickAddRequest
@@ -79,12 +81,15 @@ fun WeightScreen() {
             IconCircle("＋", contentDescription = stringResource(R.string.g_wt_add)) { nav.quickAdd.value = QuickAddRequest(mode = "WEIGHT") }
         }
         LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            item(key = "summary", contentType = "card") {
+            if (all.isEmpty()) item(key = "empty", contentType = "empty") {
+                AppCard { EmptyState("⚖️", stringResource(R.string.g_wt_title), stringResource(R.string.g_wt_need_two), stringResource(R.string.g_wt_log_first)) { nav.quickAdd.value = QuickAddRequest(mode = "WEIGHT") } }
+            } else item(key = "summary", contentType = "card") {
                 AppCard {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Column(Modifier.weight(1f)) {
                             Text(stringResource(R.string.g_wt_current), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2)
-                            Text(cur?.let { stringResource(R.string.g_kg, "%.1f".format(it)) } ?: "–", style = U.t.display)
+                            val curShown by androidx.compose.animation.core.animateFloatAsState((cur ?: 0.0).toFloat(), app.unavu.ui.theme.motionTween(app.unavu.ui.theme.Motion.LONG), label = "weightCount")
+                            Text(if (cur != null) stringResource(R.string.g_kg, "%.1f".format(curShown)) else "–", style = U.t.display)
                         }
                         Column(horizontalAlignment = Alignment.End) {
                             rate?.let {
@@ -102,7 +107,7 @@ fun WeightScreen() {
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Segmented(listOf("1W", "1M", "3M", stringResource(R.string.g_wt_all)), range) { range = it }
+                    SlidingSegmented(listOf("1W", "1M", "3M", stringResource(R.string.g_wt_all)), range) { range = it }
                     Spacer(Modifier.height(8.dp))
                     if (shown.size >= 2) {
                         val start = LocalDate.parse(shown.first().date)

@@ -37,7 +37,6 @@ import app.unavu.ui.AppCard
 import app.unavu.ui.ConfirmDialog
 import app.unavu.ui.Divider
 import app.unavu.ui.EmojiText
-import app.unavu.ui.ListRow
 import app.unavu.ui.LocalData
 import app.unavu.ui.LocalFeedback
 import app.unavu.ui.PrimaryButton
@@ -139,7 +138,7 @@ fun BackupScreen() {
                     "📊" to (Backup.SUMMARY_CSV to R.string.i_file_summary),
                 ).forEachIndexed { i, (icon, f) ->
                     if (i > 0) Divider()
-                    ListRow(f.first, stringResource(f.second), icon, trailing = null)
+                    SettingsRow(f.first, stringResource(f.second), icon)
                 }
             }
             SectionLabel(stringResource(R.string.i_daily_backup))
@@ -149,7 +148,7 @@ fun BackupScreen() {
                     Scheduler.scheduleBackup(context)
                 }
                 Divider()
-                ListRow(stringResource(R.string.i_time), null, trailing = fmtTime(b.hour, b.minute)) { timeDialog = true }
+                SettingsRow(stringResource(R.string.i_time), null, trailing = fmtTime(b.hour, b.minute), chevron = true) { timeDialog = true }
             }
             SectionLabel(stringResource(R.string.i_restore))
             SecondaryButton(stringResource(R.string.i_restore_button)) { pickRestore.launch(arrayOf("application/json", "application/octet-stream", "*/*")) }

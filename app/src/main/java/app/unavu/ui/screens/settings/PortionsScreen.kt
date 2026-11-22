@@ -27,7 +27,6 @@ import app.unavu.data.fmtQty
 import app.unavu.data.unitLabel
 import app.unavu.ui.AppCard
 import app.unavu.ui.Divider
-import app.unavu.ui.ListRow
 import app.unavu.ui.LocalData
 import app.unavu.ui.LocalFeedback
 import app.unavu.ui.QuickAddRequest
@@ -64,10 +63,10 @@ fun PortionsScreen() {
                         if (i > 0) Divider()
                         val grams = f.unit(p.unit).grams
                         val extra = f.choiceSummary(p.choices).takeIf { it.isNotBlank() }?.let { " · $it" } ?: ""
-                        ListRow(
+                        SettingsRow(
                             f.name,
                             stringResource(R.string.i_portion_line, fmtQty(p.qty), unitLabel(p.unit, p.qty), p.unit, grams.roundToInt(), if (f.liquid) "ml" else "g", extra),
-                            f.emoji, trailing = "✏️",
+                            f.emoji, trailing = stringResource(R.string.i_edit), chevron = true,
                         ) { editing = f.id }
                     }
                 }
