@@ -95,13 +95,13 @@ fun AppColors.withAccent(picked: Color): AppColors {
 
 val LightColors = AppColors(
     bg = Color(0xFFFBF8F2), sf = Color(0xFFFFFFFF), sf2 = Color(0xFFF1ECE1), line = Color(0xFFECE6DA),
-    ink = Color(0xFF1C1B18), ink2 = Color(0xFF6B675E),
+    ink = Color(0xFF1C1B18), ink2 = Color(0xFF5F5B52),
     leaf = Color(0xFF2F7D4F), leafS = Color(0xFFE3F1E8), leafInk = Color(0xFF2C764B),
     tur = Color(0xFFE8A317), turS = Color(0xFFFDF1D6), turInk = Color(0xFF8D6100),
     chi = Color(0xFFD64545), chiS = Color(0xFFFBE3E3),
     blue = Color(0xFF4A6FA5), blueS = Color(0xFFE5ECF6),
     m3 = Color(0xFFC9733A), scrim = Color(0x8CF0ECE4), dark = false,
-    chiInk = Color(0xFFB83B3B), blueInk = Color(0xFF476BA0), hint = Color(0xFF6B675E),
+    chiInk = Color(0xFFB83B3B), blueInk = Color(0xFF476BA0), hint = Color(0xFF5F5B52),
 )
 
 val DarkColors = AppColors(

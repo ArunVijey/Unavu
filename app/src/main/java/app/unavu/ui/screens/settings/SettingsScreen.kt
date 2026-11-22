@@ -17,6 +17,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
@@ -108,12 +117,32 @@ fun SettingsScreen() {
                 SettingsRow(stringResource(R.string.i_backup), sub, "📁") { nav.push(Page.Backup) }
                 Divider()
                 val on = data.reminders.count { it.on }
-                val blocked = on > 0 && !notificationsAllowed(context)
+                var allowedNow by remember { mutableStateOf(notificationsAllowed(context)) }
+                var asked by rememberSaveable { mutableStateOf(false) }
+                androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { allowedNow = notificationsAllowed(context) }
+                val askPerm = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestPermission()) { allowedNow = notificationsAllowed(context) }
+                val fixNotifications = {
+                    val canAsk = android.os.Build.VERSION.SDK_INT >= 33 && !asked &&
+                        androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                    if (canAsk) {
+                        asked = true; askPerm.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        context.startActivity(android.content.Intent(android.provider.Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(android.provider.Settings.EXTRA_APP_PACKAGE, context.packageName).addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }
+                }
+                val blocked = on > 0 && !allowedNow
                 SettingsRow(
                     stringResource(R.string.i_reminders),
                     stringResource(if (blocked) R.string.i_reminders_off_perm else R.string.i_reminders_on, on),
                     "🔔",
                 ) { nav.push(Page.Reminders) }
+                if (blocked) Text(
+                    stringResource(R.string.i_fix),
+                    color = c.accInk, style = U.t.label.iBold(),
+                    modifier = Modifier.align(Alignment.End).heightIn(min = 48.dp)
+                        .clickable(role = Role.Button) { fixNotifications() }
+                        .padding(horizontal = 12.dp, vertical = 12.dp),
+                )
                 Divider()
                 SettingsRow(stringResource(R.string.i_saved_combos), stringResource(R.string.i_in_meals_tab), "🍲") { nav.home(); nav.tab.value = Tab.MEALS }
             }

@@ -147,6 +147,7 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
     val reduced = LocalReducedMotion.current
 
     ActionEffect(nav, action, consumed)
+    LaunchedEffect(tab, page) { feedback.host.currentSnackbarData?.dismiss() }
 
     // predictive back: the system shows the back preview; we pop when it commits
     var backProgress by remember { mutableFloatStateOf(0f) }
@@ -222,10 +223,7 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
             SnackbarHost(feedback.host, Modifier.align(Alignment.BottomCenter).padding(horizontal = 12.dp, vertical = 8.dp)) { data ->
                 val c = U.c
                 val shape = RoundedCornerShape(14.dp)
-                // the border lives on a clipped wrapper so only one outline is drawn
-                Box(Modifier.clip(shape).border(1.dp, c.line, shape)) {
-                    Snackbar(data, shape = shape, containerColor = c.sf, contentColor = c.ink, actionColor = c.accInk)
-                }
+                Snackbar(data, modifier = Modifier.border(1.dp, c.line, shape), shape = shape, containerColor = c.sf, contentColor = c.ink, actionColor = c.accInk)
             }
         }
         AnimatedVisibility(

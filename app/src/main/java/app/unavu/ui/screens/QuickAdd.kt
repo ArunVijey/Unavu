@@ -151,8 +151,12 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     }
     val kcalShown by androidx.compose.animation.core.animateIntAsState(totalKcal, motionTween(Motion.LONG), label = "kcalCount")
 
+    // continuity with the FAB: content grows from the bottom-right corner (where the FAB sits)
+    var entered by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { entered = true }
+    val enterScale by androidx.compose.animation.core.animateFloatAsState(if (entered || reducedMotion) 1f else 0.94f, motionTween(Motion.LONG, Motion.EmphasizedDecelerate), label = "sheetEnter")
     ModalBottomSheet(onDismissRequest = dismissOnce, sheetState = sheet, containerColor = c.bg, dragHandle = null) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
+        Column(Modifier.fillMaxWidth().graphicsLayer { transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0.92f, 1f); scaleX = enterScale; scaleY = enterScale }.padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SlidingSegments(Mode.entries, mode, { stringResource(it.labelRes) }) { m ->
                     modeName = m.name; text = ""; overrides.clear(); comboItems = emptyList()

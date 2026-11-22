@@ -11,7 +11,7 @@ import kotlinx.coroutines.launch
 
 /**
  * App-wide snackbar messages ("Added to Breakfast", "Deleted · UNDO").
- * Owner: Agent B (app shell). Round-1 skeleton; B hosts the SnackbarHost in MainActivity and provides LocalFeedback.
+ * The SnackbarHost lives in Shell.kt; LocalFeedback is provided by MainActivity.
  */
 @Stable
 class Feedback(val host: SnackbarHostState, private val scope: CoroutineScope) {

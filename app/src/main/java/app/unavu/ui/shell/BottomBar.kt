@@ -6,6 +6,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.interaction.collectIsFocusedAsState
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -67,6 +69,7 @@ private fun tabLabel(t: Tab): String = stringResource(
 @Composable
 fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolean = false) {
     val c = U.c
+    val bigFont = androidx.compose.ui.platform.LocalDensity.current.fontScale > 1.3f
     val haptic = LocalHapticFeedback.current
     Divider()
     Row(
@@ -76,10 +79,11 @@ fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolea
         Row(Modifier.weight(1f).selectableGroup(), horizontalArrangement = Arrangement.SpaceEvenly) {
             Tab.entries.forEach { t ->
                 val on = t == tab
+                val label = tabLabel(t)
                 val col by animateColorAsState(if (on) c.ink else c.ink2, motionTween(), label = "tabColor")
                 val ind by animateFloatAsState(if (on) 1f else 0f, motionTween(), label = "tabIndicator")
                 Column(
-                    Modifier.weight(1f).heightIn(min = 64.dp).selectable(selected = on, role = Role.Tab) {
+                    Modifier.weight(1f).heightIn(min = 64.dp).semantics { contentDescription = label }.selectable(selected = on, role = Role.Tab) {
                         if (!on) { haptic.performHapticFeedback(HapticFeedbackType.SegmentTick); onTab(t) }
                     },
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -94,9 +98,9 @@ fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit, addOpen: Boolea
                         NavIcon(t.glyph, col, on, c.accS)
                     }
                     Spacer(Modifier.height(4.dp))
-                    Text(
-                        tabLabel(t), style = U.t.caption, fontWeight = FontWeight.SemiBold, color = col,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    if (!bigFont) Text(
+                        label, style = U.t.caption, fontWeight = FontWeight.SemiBold, color = col,
+                        maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -115,16 +119,18 @@ private fun BarFab(modifier: Modifier, open: Boolean, contentDescription: String
     val reduced = LocalReducedMotion.current
     val source = remember { MutableInteractionSource() }
     val pressed by source.collectIsPressedAsState()
+    val focused by source.collectIsFocusedAsState()
     val scale by animateFloatAsState(if (pressed && !reduced) 0.92f else 1f, motionTween(Motion.SHORT), label = "fabPress")
     val rot by animateFloatAsState(if (open) 45f else 0f, motionTween(Motion.MEDIUM, Motion.Emphasized), label = "fabRot")
     Box(
         modifier
-            .size(54.dp)
+            .size(56.dp)
             .graphicsLayer { scaleX = scale; scaleY = scale }
             .shadow(6.dp, CircleShape, ambientColor = c.acc, spotColor = c.acc)
             .clip(CircleShape)
             .background(c.acc)
-            .clickable(interactionSource = source, indication = null, role = Role.Button, onClick = onClick)
+            .then(if (focused) Modifier.border(2.dp, c.ink, CircleShape) else Modifier)
+            .clickable(interactionSource = source, indication = androidx.compose.material3.ripple(bounded = true, color = c.onAcc), role = Role.Button, onClick = onClick)
             .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {

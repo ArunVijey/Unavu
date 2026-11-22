@@ -107,7 +107,7 @@ fun InsightsScreen() {
             staggerItem("range", "range", 0) {
                 SlidingSegmented(listOf(stringResource(R.string.g_ins_week), stringResource(R.string.g_ins_month), stringResource(R.string.g_ins_3months)), range) { range = it }
             }
-            staggerItem("cards", "cards", 1) {
+            if (enough) staggerItem("cards", "cards", 1) {
                 val diff = calc.avg.kcal.roundToInt() - t.kcal
                 val avgText = if (!enough || calc.counted.isEmpty()) "–" else "%,d".format(calc.avg.kcal.roundToInt())
                 val avgSub = if (!enough || calc.counted.isEmpty()) stringResource(R.string.g_ins_no_logs) else if (diff <= 0) stringResource(R.string.g_ins_under, -diff) else stringResource(R.string.g_ins_over, diff)

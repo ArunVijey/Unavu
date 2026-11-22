@@ -7,6 +7,7 @@
     <string name="i_female">Female</string>
     <string name="i_profile_line">%1$s · %2$d · %3$d cm · %4$s kg</string>
     <string name="i_edit">Edit</string>
+    <string name="i_fix">Fix</string>
     <string name="i_sec_plan">Your plan</string>
     <string name="i_sec_app">App</string>
     <string name="i_sec_about">About</string>

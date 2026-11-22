@@ -23,8 +23,8 @@ import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
- * Motion tokens. Owner: Agent C (theme). Round-1 skeleton: C wires LocalReducedMotion to the system
- * animator duration scale inside AppTheme.
+ * Motion tokens (durations + easings). SHORT: taps/press; MEDIUM: state changes; LONG: page and sheet transitions.
+ * LocalReducedMotion mirrors the system animator duration scale (set in AppTheme).
  */
 object Motion {
     const val SHORT = 150

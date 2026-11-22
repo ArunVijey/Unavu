@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.sp
 
 /**
  * Named type roles. Use `U.t.body` etc. instead of literal font sizes.
- * Owner: Agent C (theme). This is the round-1 skeleton; C refines sizes, line heights and the Excalifont adjustments.
+ * Sizes and line heights are tuned per role; Excalifont adjustments live in AppTheme.
  */
 @Immutable
 data class AppType(
