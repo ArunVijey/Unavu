@@ -5,6 +5,12 @@ import android.os.Build
 import android.view.WindowManager
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
+import app.unavu.ui.theme.Motion
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
@@ -72,7 +78,7 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
         SideEffect {
             window?.let { w ->
-                w.setDimAmount(0.35f)
+                w.setDimAmount(0f)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     w.addFlags(WindowManager.LayoutParams.FLAG_BLUR_BEHIND)
                     w.attributes = w.attributes.apply { blurBehindRadius = 48 }
@@ -87,7 +93,9 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
             contentAlignment = Alignment.Center,
         ) {
             val reduced = LocalReducedMotion.current
-            AnimatedVisibility(shown, enter = if (reduced) fadeIn(snap()) else scaleIn(spring(dampingRatio = 0.62f, stiffness = 420f), initialScale = 0.86f) + fadeIn()) {
+            val scrim by animateFloatAsState(if (shown) 0.35f else 0f, if (reduced) snap() else tween(Motion.MEDIUM, easing = Motion.Standard), label = "scrim")
+            Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = scrim)))
+            AnimatedVisibility(shown, enter = if (reduced) fadeIn(snap()) else scaleIn(spring(dampingRatio = 0.8f, stiffness = Spring.StiffnessMedium), initialScale = 0.86f, transformOrigin = TransformOrigin(0.5f, 0.3f)) + fadeIn(tween(Motion.SHORT))) {
                 Column(
                     Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 40.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),

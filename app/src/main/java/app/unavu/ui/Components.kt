@@ -473,3 +473,59 @@ fun Modifier.pressScale(): Modifier = composed {
         }
         .graphicsLayer { scaleX = scale; scaleY = scale }
 }
+
+
+enum class LineGlyph { CALENDAR, MORE }
+
+/** Drawn line icon (no emoji, no date-specific text) in a 48dp touch target with a 40dp circle. */
+@Composable
+fun GlyphCircle(glyph: LineGlyph, contentDescription: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
+    val ink = U.c.ink
+    Box(
+        modifier.size(48.dp).pressScale().clip(CircleShape)
+            .clickable(role = Role.Button) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() }
+            .semantics(mergeDescendants = true) { this.contentDescription = contentDescription },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(
+            Modifier.size(40.dp).then(if (U.sketch) Modifier.edge(ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = glyph.ordinal + 3) else Modifier)
+                .clip(CircleShape).background(U.c.sf2),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.size(20.dp)) {
+                val w = size.width; val h = size.height
+                val sw = w * 0.1f
+                val st = Stroke(width = sw, cap = StrokeCap.Round, join = StrokeJoin.Round)
+                when (glyph) {
+                    LineGlyph.CALENDAR -> {
+                        drawRoundRect(ink, Offset(w * 0.08f, h * 0.17f), androidx.compose.ui.geometry.Size(w * 0.84f, h * 0.75f), androidx.compose.ui.geometry.CornerRadius(w * 0.16f), style = st)
+                        drawLine(ink, Offset(w * 0.08f, h * 0.43f), Offset(w * 0.92f, h * 0.43f), sw, StrokeCap.Round)
+                        drawLine(ink, Offset(w * 0.3f, h * 0.05f), Offset(w * 0.3f, h * 0.27f), sw, StrokeCap.Round)
+                        drawLine(ink, Offset(w * 0.7f, h * 0.05f), Offset(w * 0.7f, h * 0.27f), sw, StrokeCap.Round)
+                    }
+                    LineGlyph.MORE -> listOf(0.2f, 0.5f, 0.8f).forEach { x -> drawCircle(ink, w * 0.09f, Offset(w * x, h * 0.5f)) }
+                }
+            }
+        }
+    }
+}
+
+/** 48dp circular "+" with an accent outline. Pass a null [onClick] when a parent row handles the tap. */
+@Composable
+fun PlusRingButton(contentDescription: String?, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+    val haptic = LocalHapticFeedback.current
+    val acc = U.c.acc
+    val ink = U.c.ink
+    val base = modifier.size(48.dp).clip(CircleShape)
+    val click = if (onClick != null) Modifier.pressScale().clickable(role = Role.Button) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() } else Modifier
+    val sem = if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier
+    Box(base.then(click).then(sem), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.size(40.dp)) {
+            drawCircle(acc, radius = size.minDimension / 2 - 1.dp.toPx(), style = Stroke(width = 2.dp.toPx()))
+            val a = size.width * 0.17f; val m = size.width / 2
+            drawLine(ink, Offset(m - a, m), Offset(m + a, m), 2.2.dp.toPx(), StrokeCap.Round)
+            drawLine(ink, Offset(m, m - a), Offset(m, m + a), 2.2.dp.toPx(), StrokeCap.Round)
+        }
+    }
+}

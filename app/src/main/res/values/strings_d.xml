@@ -54,9 +54,10 @@
     <string name="d_plus_glass">+ glass</string>
     <string name="d_plus_glass_desc">Add a glass of water</string>
     <string name="d_glass_added">Added a glass of water</string>
-    <string name="d_meal_not_logged">Not logged · tap to build a plate</string>
+    <string name="d_meal_not_logged">Not logged</string>
     <string name="d_cheat_meal">🍕 Cheat meal</string>
     <string name="d_weight_title">⚖️ Weight  %1$s</string>
+    <string name="d_weight_none">⚖️ No weigh-in yet</string>
     <string name="d_weight_first">Log your first weigh-in</string>
     <string name="d_weight_sub">Trend %1$s kg · last %2$s</string>
     <string name="d_plus_weighin">+ weigh-in</string>

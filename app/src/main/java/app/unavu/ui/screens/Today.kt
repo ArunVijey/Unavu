@@ -1,6 +1,28 @@
 package app.unavu.ui.screens
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.composed
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.LocalDensity
+import app.unavu.ui.GlyphCircle
+import app.unavu.ui.LineGlyph
+import app.unavu.ui.PlusRingButton
+import app.unavu.ui.theme.LocalReducedMotion
+import app.unavu.ui.theme.Motion
+import kotlinx.coroutines.delay
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -78,7 +100,6 @@ import app.unavu.ui.IconCircle
 import app.unavu.ui.InputDialog
 import app.unavu.ui.LocalData
 import app.unavu.ui.Page
-import app.unavu.ui.PrimaryButton
 import app.unavu.ui.QuickAddRequest
 import app.unavu.ui.Status
 import app.unavu.ui.StatusBadge
@@ -129,6 +150,25 @@ fun dayTitle(date: String): String {
     }
 }
 
+/** Fade + 12dp slide-up on first composition, staggered by [index]. Plays once per screen visit (tracked in [seen]). */
+private fun Modifier.staggerIn(index: Int, seen: MutableSet<Int>): Modifier = composed {
+    val reduced = LocalReducedMotion.current
+    val already = remember { reduced || index in seen }
+    val a = remember { Animatable(if (already) 1f else 0f) }
+    LaunchedEffect(Unit) {
+        seen.add(index)
+        if (a.value < 1f) {
+            delay(40L * index.coerceAtMost(10))
+            a.animateTo(1f, tween(Motion.MEDIUM, easing = Motion.EmphasizedDecelerate))
+        }
+    }
+    val px = with(LocalDensity.current) { 12.dp.toPx() }
+    graphicsLayer { alpha = a.value; translationY = (1f - a.value) * px }
+}
+
+/** Compact litres: 0, 1.25, 2.5. */
+private fun fmtL(ml: Int): String = "%.2f".format(ml / 1000.0).trimEnd('0').trimEnd('.')
+
 @Composable
 fun TodayScreen() {
     val c = U.c
@@ -147,6 +187,18 @@ fun TodayScreen() {
     val colors = mealColors(c)
     val cheatDay = data.isCheatDay(date)
     val loadIssue = store.loadIssue.collectAsState().value
+    val haptic = LocalHapticFeedback.current
+    val seen = remember { mutableSetOf<Int>() }
+    val dayAlpha = remember { Animatable(1f) }
+    val fadeSpec = motionTween<Float>(Motion.SHORT)
+    val dayFade = Modifier.graphicsLayer { alpha = dayAlpha.value }
+    val reducedMotion = LocalReducedMotion.current
+    var firstDay by remember { mutableStateOf(true) }
+    LaunchedEffect(date) {
+        if (firstDay) { firstDay = false } else if (!reducedMotion) {
+            dayAlpha.snapTo(0.2f); dayAlpha.animateTo(1f, tween(Motion.SHORT, easing = Motion.Standard))
+        }
+    }
 
     // Saveable UI state: ids / enum names, never objects.
     var nutrientKey by rememberSaveable { mutableStateOf<String?>(null) }
@@ -173,9 +225,9 @@ fun TodayScreen() {
     Column(Modifier.fillMaxSize()) {
         TopBar(dayTitle(date)) {
             if (date != today()) IconCircle("⟲", contentDescription = stringResource(R.string.d_back_to_today)) { nav.date.value = today() }
-            IconCircle("📅", contentDescription = stringResource(R.string.d_history)) { nav.push(Page.History) }
+            GlyphCircle(LineGlyph.CALENDAR, stringResource(R.string.d_history)) { nav.push(Page.History) }
             Box {
-                IconCircle("⋯", contentDescription = stringResource(R.string.d_more)) { menu = true }
+                GlyphCircle(LineGlyph.MORE, stringResource(R.string.d_more)) { menu = true }
                 DropdownMenu(menu, { menu = false }, containerColor = c.sf) {
                     DropdownMenuItem({ Text(stringResource(if (cheatDay) R.string.d_menu_unmark_cheat_day else R.string.d_menu_mark_cheat_day), style = U.t.body) }, {
                         menu = false
@@ -198,11 +250,11 @@ fun TodayScreen() {
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             item(key = "week", contentType = "week") {
-                WeekStrip(data, date, Modifier.animateItem()) { nav.date.value = it }
+                WeekStrip(data, date, Modifier.animateItem().staggerIn(0, seen)) { nav.date.value = it }
             }
 
             if (loadIssue != null) item(key = "loadIssue", contentType = "banner") {
-                AppCard(Modifier.animateItem(), color = c.chiS, border = null, onClick = { nav.push(Page.Backup) }) {
+                AppCard(Modifier.animateItem().then(dayFade), color = c.chiS, border = null, onClick = { nav.push(Page.Backup) }) {
                     Text(stringResource(R.string.d_load_issue_title), style = U.t.body, fontWeight = FontWeight.Bold, color = c.chiInk)
                     Text(stringResource(R.string.d_load_issue_sub), style = U.t.caption, color = c.ink2)
                 }
@@ -211,14 +263,14 @@ fun TodayScreen() {
             data.smart.pendingBurn?.let { burn ->
                 item(key = "smart", contentType = "banner") {
                     val newKcal = (burn + (data.profile?.goalKcal ?: 0)).coerceAtLeast(1200)
-                    AppCard(Modifier.animateItem(), color = c.leafS, border = null, onClick = { nav.push(Page.SmartTarget) }) {
+                    AppCard(Modifier.animateItem().then(dayFade), color = c.leafS, border = null, onClick = { nav.push(Page.SmartTarget) }) {
                         Text(stringResource(R.string.d_new_target, newKcal), style = U.t.body, fontWeight = FontWeight.Bold, color = c.leafInk)
                         Text(stringResource(R.string.d_new_target_sub, t.kcal), style = U.t.caption, color = c.ink2)
                     }
                 }
             }
             if (cheatDay) item(key = "cheat", contentType = "banner") {
-                AppCard(Modifier.animateItem(), color = c.turS, border = null) {
+                AppCard(Modifier.animateItem().then(dayFade), color = c.turS, border = null) {
                     Text(stringResource(R.string.d_cheat_day_title, data.dayNotes[date]?.let { " · $it" } ?: ""), style = U.t.body, fontWeight = FontWeight.Bold, color = c.turInk)
                     Text(stringResource(R.string.d_cheat_day_sub), style = U.t.caption, color = c.ink2)
                 }
@@ -226,70 +278,69 @@ fun TodayScreen() {
 
             // ---------- Budget hero ----------
             item(key = "hero", contentType = "hero") {
-                BudgetHero(Modifier.animateItem(), t.kcal, eaten, left, byMeal, colors, total, t, data.settings.homeChips, { budgetLook = true }, { nutrientKey = it.key })
-            }
-
-            if (entries.isEmpty()) item(key = "empty", contentType = "empty") {
-                AppCard(Modifier.animateItem()) {
-                    Text(stringResource(R.string.d_empty_day_title), style = U.t.title)
-                    Text(stringResource(R.string.d_empty_day_sub), style = U.t.bodyS, color = c.ink2, modifier = Modifier.padding(top = 2.dp, bottom = 12.dp))
-                    PrimaryButton(stringResource(R.string.d_empty_day_action)) { nav.quickAdd.value = QuickAddRequest() }
-                }
+                BudgetHero(Modifier.animateItem().staggerIn(1, seen).then(dayFade), t.kcal, eaten, left, byMeal, colors, total, t, data.settings.homeChips, { budgetLook = true }, { nutrientKey = it.key })
             }
 
             item(key = "next", contentType = "next") {
-                Box(Modifier.animateItem()) { NextUpCard(date, byMeal, left, total, t) }
+                Box(Modifier.animateItem().staggerIn(2, seen).then(dayFade)) { NextUpCard(date, byMeal, left, total, t) }
             }
 
             // ---------- Liquids ----------
             item(key = "liquids", contentType = "liquids") {
                 val (water, drinks) = data.liquidsMl(date)
                 val goal = data.settings.waterGoalMl
-                AppCard(Modifier.animateItem()) {
+                val liqSub = stringResource(R.string.d_liquids_sub, fmtL(water), fmtL(goal), drinks)
+                AppCard(Modifier.animateItem().staggerIn(3, seen).then(dayFade)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(
-                            Modifier.weight(1f).heightIn(min = 48.dp).semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Liquids) },
+                            Modifier.weight(1f).heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Liquids) },
                             verticalArrangement = Arrangement.Center,
                         ) {
-                            Text(stringResource(R.string.d_liquids_title, "%.1f".format((water + drinks) / 1000.0)), style = U.t.body, fontWeight = FontWeight.Bold)
-                            Text(stringResource(R.string.d_liquids_sub, "%.2f".format(water / 1000.0), "%.1f".format(goal / 1000.0), drinks), style = U.t.caption, color = c.ink2)
+                            Text(stringResource(R.string.d_liquids_title, fmtL(water + drinks)), style = U.t.body, fontWeight = FontWeight.Bold)
+                            Text(liqSub, style = U.t.caption, color = c.ink2)
                         }
                         ActionChip(stringResource(R.string.d_plus_glass), c.blueInk, c.blueS, stringResource(R.string.d_plus_glass_desc)) {
                             undoable(sGlass) { store.addWater(date, 250) }
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    Track(water / goal.toFloat(), c.blue, height = 8.dp, contentDescription = stringResource(R.string.d_liquids_sub, "%.2f".format(water / 1000.0), "%.1f".format(goal / 1000.0), drinks))
+                    Track(water / goal.toFloat(), c.blue, height = 8.dp, contentDescription = liqSub)
                 }
             }
 
             // ---------- Meals ----------
             item(key = "meals", contentType = "meals") {
-                AppCard(Modifier.animateItem(), padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                AppCard(Modifier.animateItem().staggerIn(4, seen).then(dayFade).animateContentSize(motionTween()), padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
                     Meal.entries.forEachIndexed { i, m ->
                         if (i > 0) Divider()
                         val list = byMeal.getValue(m)
                         val kcal = list.total().kcal.roundToInt()
+                        val empty = list.isEmpty()
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                            Modifier.fillMaxWidth().heightIn(min = if (empty) 56.dp else 64.dp)
+                                .animateContentSize(motionTween())
                                 .semantics(mergeDescendants = true) {}
-                                .clickable(role = Role.Button) { if (list.isEmpty()) nav.push(Page.Plate(m, date)) else mealLook = m.name }
-                                .padding(vertical = 14.dp),
+                                .clickable(role = Role.Button) {
+                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    if (empty) nav.push(Page.Plate(m, date)) else mealLook = m.name
+                                }
+                                .padding(vertical = if (empty) 4.dp else 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
-                            Box(Modifier.size(9.dp).clip(CircleShape).background(colors[i]))
+                            Box(Modifier.size(9.dp).clip(CircleShape).background(if (empty) colors[i].copy(alpha = 0.45f) else colors[i]))
                             Column(Modifier.weight(1f)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Text(m.label, style = U.t.titleS)
+                                    Text(m.label, style = U.t.titleS, color = if (empty) c.ink2 else c.ink)
                                     if (list.any { it.cheat }) StatusBadge(stringResource(R.string.d_cheat_meal), Status.LOW)
                                 }
-                                Text(
-                                    if (list.isEmpty()) stringResource(R.string.d_meal_not_logged) else list.joinToString(" · ") { e -> mealItemText(e) },
-                                    style = U.t.bodyS, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp),
-                                )
+                                val sub = if (empty) stringResource(R.string.d_meal_not_logged) else list.joinToString(" · ") { e -> mealItemText(e) }
+                                AnimatedContent(sub, transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) }, label = "mealSub") { txt ->
+                                    Text(txt, style = U.t.bodyS, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
+                                }
                             }
-                            Text(if (kcal > 0) "$kcal" else "+", style = U.t.titleS, fontWeight = FontWeight.ExtraBold, color = if (kcal > 0) c.ink else c.ink2)
+                            if (empty) PlusRingButton(null)
+                            else Text("$kcal", style = U.t.titleS, fontWeight = FontWeight.ExtraBold, color = c.ink)
                         }
                     }
                 }
@@ -299,13 +350,13 @@ fun TodayScreen() {
             item(key = "weight", contentType = "weight") {
                 val lastW = data.weights.lastOrNull()
                 val trend = remember(data.weights) { Smart.trend(data.weights).lastOrNull()?.second }
-                AppCard(Modifier.animateItem()) {
+                AppCard(Modifier.animateItem().staggerIn(5, seen).then(dayFade)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(
-                            Modifier.weight(1f).heightIn(min = 48.dp).semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Weight) },
+                            Modifier.weight(1f).heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Weight) },
                             verticalArrangement = Arrangement.Center,
                         ) {
-                            Text(stringResource(R.string.d_weight_title, lastW?.let { "%.1f kg".format(it.kg) } ?: "–"), style = U.t.body, fontWeight = FontWeight.Bold)
+                            Text(if (lastW == null) stringResource(R.string.d_weight_none) else stringResource(R.string.d_weight_title, "%.1f kg".format(lastW.kg)), style = U.t.body, fontWeight = FontWeight.Bold)
                             Text(
                                 if (lastW == null || trend == null) stringResource(R.string.d_weight_first)
                                 else stringResource(R.string.d_weight_sub, "%.1f".format(trend), dayTitle(lastW.date).lowercase()),
@@ -375,8 +426,9 @@ fun TodayScreen() {
 
 @Composable
 private fun ActionChip(text: String, fg: Color, bg: Color, description: String, onClick: () -> Unit) {
+    val haptic = LocalHapticFeedback.current
     Box(
-        Modifier.heightIn(min = 48.dp).pressScale().clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = description },
+        Modifier.heightIn(min = 48.dp).pressScale().clickable(role = Role.Button) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onClick() }.semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -394,8 +446,9 @@ private fun BudgetHero(
     val c = U.c
     var armed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { armed = true }
-    val shownLeft by animateIntAsState(if (armed) abs(left) else 0, motionTween(), label = "left")
-    val parts = Meal.entries.map { m -> (byMeal.getValue(m).total().kcal / kcal).toFloat() }
+    val shownLeft by animateIntAsState(if (armed) abs(left) else 0, motionTween(Motion.LONG), label = "left")
+    val grow by animateFloatAsState(if (armed) 1f else 0f, motionTween(Motion.LONG), label = "grow")
+    val parts = Meal.entries.map { m -> (byMeal.getValue(m).total().kcal / kcal).toFloat() * grow }
     val scale = if (parts.sum() > 1f) 1f / parts.sum() else 1f
     val mealKcal = Meal.entries.map { m -> byMeal.getValue(m).total().kcal.roundToInt() }
     val breakdown = Meal.entries.mapIndexed { i, m -> stringResource(R.string.d_meal_kcal, m.label, mealKcal[i]) }.joinToString(" ")
@@ -407,10 +460,10 @@ private fun BudgetHero(
         Row(Modifier.semantics(mergeDescendants = true) { contentDescription = summary }, verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(if (left >= 0) R.string.d_can_still_eat else R.string.d_over_target_by), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2, letterSpacing = 0.8.sp)
-                Row(verticalAlignment = Alignment.Bottom) {
+                Row(Modifier.padding(top = 4.dp)) {
                     val big = U.t.display
-                    Text("$shownLeft", style = big.copy(fontSize = big.fontSize * 1.5f, lineHeight = big.lineHeight * 1.5f), color = if (left >= 0) c.ink else c.chiInk)
-                    Text(stringResource(R.string.d_kcal_unit), style = U.t.bodyS, fontWeight = FontWeight.SemiBold, color = c.ink2, modifier = Modifier.padding(bottom = 6.dp))
+                    Text("$shownLeft", style = big.copy(fontSize = big.fontSize * 1.5f, lineHeight = big.lineHeight * 1.5f), color = if (left >= 0) c.ink else c.chiInk, modifier = Modifier.alignByBaseline())
+                    Text(stringResource(R.string.d_kcal_unit), style = U.t.bodyS, fontWeight = FontWeight.SemiBold, color = c.ink2, modifier = Modifier.alignByBaseline())
                 }
             }
             if (U.sketch) {
@@ -425,7 +478,7 @@ private fun BudgetHero(
                     Text("${(eaten * 100f / kcal).roundToInt()}%", style = U.t.title)
                 }
             } else {
-                Text(stringResource(R.string.d_eaten_of, eaten, kcal), style = U.t.label, color = c.ink2, textAlign = TextAlign.End)
+                Text(stringResource(R.string.d_eaten_of_line, eaten, kcal), style = U.t.label, color = c.ink2, textAlign = TextAlign.End, modifier = Modifier.padding(bottom = 8.dp))
             }
         }
         if (U.sketch) Text(stringResource(R.string.d_eaten_of_line, eaten, kcal), style = U.t.label, color = c.ink2, modifier = Modifier.padding(top = 2.dp).clearSem())
@@ -453,9 +506,10 @@ private fun BudgetHero(
                 if (rest > 0.0001f) Spacer(Modifier.weight(rest))
             }
         }
-        Spacer(Modifier.height(6.dp))
-        Row(Modifier.clearSem(), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-            Meal.entries.forEachIndexed { i, m -> LegendDot(colors[i], m.label) }
+        AnimatedVisibility(eaten > 0) {
+            Row(Modifier.clearSem().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                Meal.entries.forEachIndexed { i, m -> LegendDot(colors[i], m.label) }
+            }
         }
         Spacer(Modifier.height(14.dp))
         val chips = homeChips.mapNotNull { k -> NUTRIENTS.firstOrNull { it.key == k } }
@@ -463,7 +517,7 @@ private fun BudgetHero(
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(bottom = 10.dp)) {
                 row.forEach { d ->
                     val have = d.value(total); val target = d.target(tg)
-                    NutrientChip(d, have, target, statusOf(d, have, target), Modifier.weight(1f)) { onChip(d) }
+                    NutrientChip(d, have, target, statusOf(d, have, target), Modifier.weight(1f), logged = eaten > 0) { onChip(d) }
                 }
                 repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
             }
