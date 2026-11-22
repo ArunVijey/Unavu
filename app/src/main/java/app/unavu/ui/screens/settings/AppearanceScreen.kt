@@ -18,6 +18,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
@@ -37,8 +38,6 @@ import app.unavu.ui.Divider
 import app.unavu.ui.theme.ExcalifontFamily
 import app.unavu.ui.theme.GoogleSansFlex
 import app.unavu.ui.theme.InterFamily
-import app.unavu.ui.theme.Motion
-import app.unavu.ui.theme.motionTween
 import app.unavu.ui.theme.Motion
 import app.unavu.ui.theme.motionTween
 import app.unavu.ui.theme.U
@@ -90,8 +89,6 @@ fun AppearanceScreen() {
                 listOf(AppFont.GOOGLE_SANS_FLEX to GoogleSansFlex, AppFont.INTER to InterFamily, AppFont.EXCALIFONT to ExcalifontFamily).forEach { (font, family) ->
                     val on = if (s.sketch) font == AppFont.EXCALIFONT else s.font == font
                     val desc = stringResource(when (font) { AppFont.GOOGLE_SANS_FLEX -> R.string.i_font_default; AppFont.INTER -> R.string.i_font_compact; AppFont.EXCALIFONT -> R.string.i_font_hand })
-                    val borderA by androidx.compose.animation.animateColorAsState(if (on) c.acc else c.line, motionTween(Motion.MEDIUM), label = "fontBorder")
-                    val bgA by androidx.compose.animation.animateColorAsState(if (on) c.accS else c.sf, motionTween(Motion.MEDIUM), label = "fontBg")
                     val borderA by androidx.compose.animation.animateColorAsState(if (on) c.acc else c.line, motionTween(Motion.MEDIUM), label = "fontBorder")
                     val bgA by androidx.compose.animation.animateColorAsState(if (on) c.accS else c.sf, motionTween(Motion.MEDIUM), label = "fontBg")
                     Column(
