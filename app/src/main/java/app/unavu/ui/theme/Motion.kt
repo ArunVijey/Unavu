@@ -3,7 +3,9 @@ package app.unavu.ui.theme
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import android.content.Context
 import android.database.ContentObserver
@@ -28,7 +30,7 @@ object Motion {
     const val SHORT = 150
     const val MEDIUM = 250
     const val LONG = 300
-    val Standard: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+    val Standard: Easing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
     val Emphasized: Easing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
     val EmphasizedDecelerate: Easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
     val EmphasizedAccelerate: Easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
@@ -41,6 +43,11 @@ val LocalReducedMotion: ProvidableCompositionLocal<Boolean> = staticCompositionL
 @Composable
 fun <T> motionTween(durationMs: Int = Motion.MEDIUM, easing: Easing = Motion.EmphasizedDecelerate): FiniteAnimationSpec<T> =
     if (LocalReducedMotion.current) snap() else tween(durationMs, easing = easing)
+
+/** A spring that becomes an instant snap when reduced motion is on. */
+@Composable
+fun <T> motionSpring(dampingRatio: Float = 0.8f, stiffness: Float = Spring.StiffnessMediumLow): FiniteAnimationSpec<T> =
+    if (LocalReducedMotion.current) snap() else spring(dampingRatio, stiffness)
 
 /** Reads Settings.Global.ANIMATOR_DURATION_SCALE and follows changes (scale 0 = reduced motion). */
 @Composable
