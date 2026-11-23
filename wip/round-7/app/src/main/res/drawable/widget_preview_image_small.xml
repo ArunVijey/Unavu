@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker preview for API 26-30 (Unavu - calories left): label, calories left and progress. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp" android:height="120dp" android:viewportWidth="120" android:viewportHeight="120">
+    <path android:fillColor="@color/r7e_widget_card" android:pathData="M22,0H98A22,22 0,0 1,120,22V98A22,22 0,0 1,98,120H22A22,22 0,0 1,0,98V22A22,22 0,0 1,22,0Z" />
+    <path android:fillColor="@color/r7e_widget_ink2" android:pathData="M16,16H44A4,4 0,0 1,48,20V20A4,4 0,0 1,44,24H16A4,4 0,0 1,12,20V20A4,4 0,0 1,16,16Z" />
+    <path android:fillColor="@color/r7e_widget_ink" android:pathData="M18,32H76A6,6 0,0 1,82,38V50A6,6 0,0 1,76,56H18A6,6 0,0 1,12,50V38A6,6 0,0 1,18,32Z" />
+    <path android:fillColor="@color/r7e_widget_chip" android:pathData="M15,68H105A3,3 0,0 1,108,71V71A3,3 0,0 1,105,74H15A3,3 0,0 1,12,71V71A3,3 0,0 1,15,68Z" />
+    <path android:fillColor="@color/r7e_widget_acc_ink" android:pathData="M15,68H65A3,3 0,0 1,68,71V71A3,3 0,0 1,65,74H15A3,3 0,0 1,12,71V71A3,3 0,0 1,15,68Z" />
+</vector>

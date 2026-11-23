@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Quick add: amounts (numbers arrive already formatted by fmtInt, e.g. "1,250") -->
+    <string name="r7e_kcal">%1$s kcal</string>
+    <string name="r7e_ml">%1$s ml</string>
+
+    <!-- Quick add: water typed in the text ("1 glass water", "thanni", "தண்ணீர்") -->
+    <string name="r7e_water_row">💧 Water</string>
+    <string name="r7e_water_row_desc">Water, %1$s millilitres, goes to Liquids</string>
+    <string name="r7e_water_added">💧 +%1$s ml water</string>
+    <string name="r7e_water_snack">Added %1$s ml water</string>
+    <string name="r7e_added_to_with_water">Added %1$s to %2$s, and %3$s ml water</string>
+    <string name="r7e_btn_add_water">Add %1$s ml water</string>
+    <plurals name="r7e_btn_add_items">
+        <item quantity="one">Add %1$d item · %2$s kcal</item>
+        <item quantity="other">Add %1$d items · %2$s kcal</item>
+    </plurals>
+    <plurals name="r7e_btn_add_items_water">
+        <item quantity="one">Add %1$d item · %2$s kcal + %3$s ml water</item>
+        <item quantity="other">Add %1$d items · %2$s kcal + %3$s ml water</item>
+    </plurals>
+
+    <!-- Quick add: what was typed comes back when the sheet is reopened within 10 minutes -->
+    <string name="r7e_draft_restored">Picked up where you left off</string>
+    <string name="r7e_draft_start_over">Start over</string>
+
+    <!-- Quick add: a weigh-in that moves the daily target says so (Undo puts both back) -->
+    <string name="r7e_weight_saved_target">Saved %1$s kg · daily target %2$s → %3$s kcal</string>
+
+    <!-- Home-screen widget -->
+    <string name="r7e_widget_detail">P %1$s/%2$s g · 💧 %3$s L</string>
+    <string name="r7e_widget_preview_left">1,240</string>
+    <string name="r7e_widget_preview_detail">P 42/86 g · 💧 1.2 L</string>
+</resources>

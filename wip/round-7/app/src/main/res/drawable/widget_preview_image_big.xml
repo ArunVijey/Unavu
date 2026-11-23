@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker preview for API 26-30 (Unavu - today): label, calories left, progress, Log food and +1 glass. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="250dp" android:height="160dp" android:viewportWidth="250" android:viewportHeight="160">
+    <path android:fillColor="@color/r7e_widget_card" android:pathData="M24,0H226A24,24 0,0 1,250,24V136A24,24 0,0 1,226,160H24A24,24 0,0 1,0,136V24A24,24 0,0 1,24,0Z" />
+    <path android:fillColor="@color/r7e_widget_ink2" android:pathData="M18,16H80A4,4 0,0 1,84,20V20A4,4 0,0 1,80,24H18A4,4 0,0 1,14,20V20A4,4 0,0 1,18,16Z" />
+    <path android:fillColor="@color/r7e_widget_ink" android:pathData="M20,34H82A6,6 0,0 1,88,40V54A6,6 0,0 1,82,60H20A6,6 0,0 1,14,54V40A6,6 0,0 1,20,34Z" />
+    <path android:fillColor="@color/r7e_widget_ink2" android:pathData="M100.5,48H191.5A4.5,4.5 0,0 1,196,52.5V52.5A4.5,4.5 0,0 1,191.5,57H100.5A4.5,4.5 0,0 1,96,52.5V52.5A4.5,4.5 0,0 1,100.5,48Z" />
+    <path android:fillColor="@color/r7e_widget_chip" android:pathData="M18,72H232A4,4 0,0 1,236,76V76A4,4 0,0 1,232,80H18A4,4 0,0 1,14,76V76A4,4 0,0 1,18,72Z" />
+    <path android:fillColor="@color/r7e_widget_acc_ink" android:pathData="M18,72H140A4,4 0,0 1,144,76V76A4,4 0,0 1,140,80H18A4,4 0,0 1,14,76V76A4,4 0,0 1,18,72Z" />
+    <path android:fillColor="@color/r7e_widget_acc" android:pathData="M26,92H110A12,12 0,0 1,122,104V128A12,12 0,0 1,110,140H26A12,12 0,0 1,14,128V104A12,12 0,0 1,26,92Z" />
+    <path android:fillColor="@color/r7e_widget_on_acc" android:pathData="M44,112H92A4,4 0,0 1,96,116V116A4,4 0,0 1,92,120H44A4,4 0,0 1,40,116V116A4,4 0,0 1,44,112Z" />
+    <path android:fillColor="@color/r7e_widget_chip" android:pathData="M140,92H224A12,12 0,0 1,236,104V128A12,12 0,0 1,224,140H140A12,12 0,0 1,128,128V104A12,12 0,0 1,140,92Z" />
+    <path android:fillColor="@color/r7e_widget_ink" android:pathData="M156,112H208A4,4 0,0 1,212,116V116A4,4 0,0 1,208,120H156A4,4 0,0 1,152,116V116A4,4 0,0 1,156,112Z" />
+</vector>

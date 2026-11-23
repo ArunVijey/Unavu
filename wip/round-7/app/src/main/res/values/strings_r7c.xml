@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round 7, agent C: Today, History, Insights. Numbers arrive pre-formatted (fmtInt / fmtNum), so they are %s. -->
+<resources>
+    <!-- Day words and numbers with units -->
+    <string name="r7c_when_today">today</string>
+    <string name="r7c_when_yesterday">yesterday</string>
+    <string name="r7c_when_on">on %1$s</string>
+    <string name="r7c_kcal_value">%1$s kcal</string>
+    <string name="r7c_kcal_spoken">%1$s kilocalories</string>
+    <string name="r7c_grams">%1$s g</string>
+    <string name="r7c_grams_spoken">%1$s, %2$s grams</string>
+
+    <!-- Today -->
+    <string name="r7c_week_prev">Previous week</string>
+    <string name="r7c_week_next">Next week</string>
+    <string name="r7c_eaten_of_line">%1$s eaten of %2$s</string>
+    <string name="r7c_budget_summary_left">%1$s kilocalories left of %2$s. %3$s eaten. %4$s</string>
+    <string name="r7c_budget_summary_over">%1$s kilocalories over your target of %2$s. %3$s eaten. %4$s</string>
+    <string name="r7c_meal_kcal">%1$s %2$s kilocalories.</string>
+    <string name="r7c_next_up_budget">%1$s: %2$s of ~%3$s kcal</string>
+    <string name="r7c_new_target">🧠 New target suggested: %1$s kcal</string>
+    <string name="r7c_new_target_sub">Based on your logs and weight trend (now %1$s kcal). Tap to review.</string>
+    <string name="r7c_liquids_sub">Water %1$s / %2$s L · drinks %3$s ml</string>
+    <string name="r7c_meal_row_desc">%1$s, %2$s kilocalories: %3$s</string>
+    <string name="r7c_meal_row_empty_desc">%1$s, not logged yet</string>
+    <string name="r7c_meal_row_open">Open %1$s</string>
+    <string name="r7c_meal_row_add">Add food to %1$s</string>
+    <string name="r7c_weight_title">⚖️ Weight  %1$s kg</string>
+    <string name="r7c_weight_sub">Trend · last weigh-in %1$s kg %2$s</string>
+    <string name="r7c_weight_sub_first">First weigh-in %1$s · log another to see your trend</string>
+
+    <!-- Nutrient chips and quick looks -->
+    <string name="r7c_chip_of">/ %1$s</string>
+    <string name="r7c_kcal_share">kcal · share %1$s</string>
+    <string name="r7c_over_share">%1$s over share</string>
+    <string name="r7c_under_share">%1$s under share</string>
+    <string name="r7c_of_kcal_left">of %1$s kcal left</string>
+    <string name="r7c_kcal_over">kcal over %1$s</string>
+    <string name="r7c_limit_target">/ %1$s %2$s %3$s</string>
+    <string name="r7c_share_desc">%1$s, %2$s of %3$s kilocalories</string>
+    <string name="r7c_by_meal_item">%1$s %2$s %3$s</string>
+
+    <!-- Day judgement (History calendar, week strip, Insights) -->
+    <string name="r7c_day_in_progress">In progress</string>
+    <string name="r7c_day_on">on target</string>
+    <string name="r7c_day_under">under target</string>
+    <string name="r7c_day_over">over target</string>
+    <string name="r7c_day_progress">in progress</string>
+    <string name="r7c_day_desc">%1$s, %2$s</string>
+    <string name="r7c_hist_badge">%1$s / %2$s kcal</string>
+    <string name="r7c_hist_badge_so_far">%1$s / %2$s kcal so far</string>
+    <string name="r7c_hist_cheat_line">%1$s · %2$s kcal · not in averages</string>
+    <string name="r7c_hist_legend_progress">Today so far</string>
+    <string name="r7c_hist_progress_note">Today is judged after 10 PM, or once dinner is logged.</string>
+
+    <!-- Insights -->
+    <string name="r7c_ins_under">%1$s under target</string>
+    <string name="r7c_ins_over">%1$s over target</string>
+    <string name="r7c_ins_no_finished">no finished days yet</string>
+    <string name="r7c_ins_today_excluded">Today joins the averages once the day is done (after 10 PM, or once dinner is logged).</string>
+    <string name="r7c_ins_kcal_chart_desc">Calories chart. Daily target %1$s kcal. %2$s.</string>
+    <string name="r7c_ins_day_kcal">%1$s %2$s kcal</string>
+    <string name="r7c_ins_week_kcal">week %1$d %2$s kcal</string>
+    <string name="r7c_ins_nutrient_desc">%1$s: %2$s of %3$s %4$s</string>
+    <string name="r7c_ins_late_delta">Those days averaged %1$s kcal vs other days.</string>
+    <string name="r7c_ins_timing_note">Times are when you logged, so log close to eating. Meals added later for an earlier day are left out.</string>
+    <string-array name="r7c_timing_hours">
+        <item>6a</item>
+        <item>9a</item>
+        <item>12p</item>
+        <item>3p</item>
+        <item>6p</item>
+        <item>9p</item>
+        <item>12a</item>
+    </string-array>
+</resources>

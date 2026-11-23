@@ -1,0 +1,24 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!--
+        Window theme. The bar flags here only describe the splash moment: they match @color/splash_bg, which follows the
+        PHONE's light/dark mode. Once the app draws, MainActivity / AppTheme (applySystemBars) take over and the bar icons
+        follow the APP theme (Light / Dark / Pure black / System), including after the splash exits and after recreation.
+        Bars are transparent so nothing coloured flashes while the splash library re-applies this theme.
+    -->
+    <style name="Theme.Unavu" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+    </style>
+
+    <!-- Launch theme: system splash (API 31+ native, older via the compat library), swapped for Theme.Unavu by installSplashScreen() -->
+    <style name="Theme.Unavu.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_splash</item>
+        <item name="postSplashScreenTheme">@style/Theme.Unavu</item>
+    </style>
+</resources>

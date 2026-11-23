@@ -1,0 +1,35 @@
+# Round 7 fixes: shared contract for the 5 parallel agents (A–E)
+
+The defect list is `docs/audit/round-7.md` (31 numbered items with exact fixes). Read it and this file first.
+All five agents edit the **same checkout** (`D:\Arun\t3 code\idea\Unavu`, branch `ui-review-loop`) at the same time.
+
+## Rules
+1. **Edit only the files you own** (table below). If you need a change in someone else's file, don't make it. Write it under "Requests" in your notes file and work around it.
+2. **Don't build, don't run Gradle, don't install, don't commit, don't run any git command that changes state.** The coordinator builds, fixes compile errors and installs. You can't compile, so write carefully: check every import, every name you call (grep for its real signature), named arguments, and types. Re-read each file you changed before you finish.
+3. **Strings:** put every new user-visible string in your own new file `app/src/main/res/values/strings_r7<letter>.xml` (e.g. `strings_r7a.xml`), with every key prefixed `r7<letter>_` (e.g. `r7a_log_meal`). Use `%1$s`/`%1$d` placeholders and `<plurals>` where needed. Escape apostrophes (`\'`). Don't edit existing strings files unless the table says you own one.
+4. Keep the visual identity: palette, fonts, Sketch style (`U.sketch`, `Modifier.edge(...)`), drawn icons, turmeric accent, and the Tanglish parser. The JSON data format must stay backward compatible: only add fields that have defaults. Don't change tooling versions.
+5. Write files as UTF-8 with LF line endings (the Edit/Write tools do this).
+6. Searches: stay inside the repo.
+7. When you finish, write `docs/audit/r7-notes-<letter>.md`: what you fixed (by defect number), what you couldn't do and why, and your requests for other owners. Your final message is a short version of that.
+
+## Shared APIs (already in the code, committed; use them and don't change their signatures)
+- `ui/Widgets2.kt`: `Stepper(value, step, min = step, modifier, itemName: String? = null, slotWidth: Dp = 48.dp, onBelowMin: (() -> Unit)? = null, onChange)`. This is the one stepper, with an animated fixed-width value slot. When `itemName` is set, TalkBack says "Increase <name>". `onBelowMin` runs when "−" is pressed at the minimum (e.g. to remove a plate item).
+- `ui/Widgets2.kt`: `InputDialog(title, label, initial, numeric = false, validate: ((String) -> String?)? = null, onDismiss, onSave)`. Return an error message to show it inline and disable Save.
+- `ui/theme/Theme.kt`: `U.c.heroBg` / `U.c.onHero` for a solid green hero card and its text (≥ 4.5:1 in every palette). `Space.gutter` (16.dp) is the page side margin for every screen; `Space.cardGap` is 12.dp.
+- `data/Calc.kt`:
+  - `mealShare(targetKcal: Int, split: List<Double>, meal: Meal): Int` is the only way to compute a meal's kcal share.
+  - `fmtInt(v: Int)` / `fmtInt(v: Double)` formats every whole number shown to people in the Indian style ("2,064").
+  - `AppData.targetKcalOn(date: String): Int?` gives the target that applied on that ISO date. E implements real per-day history; everyone else just calls it for past days.
+- `ui/screens/Today.kt`: `fmtNum(v: Double)` is the existing 1-decimal/grouped formatter for grams/mg (C owns it; others may call it).
+
+## Ownership
+
+| Agent | Area | Files you own | Defects |
+|---|---|---|---|
+| **A** | Plate and food | `ui/screens/FoodDetail.kt`, `ui/screens/PlateBuilder.kt`, `ui/screens/Customise.kt`, `ui/screens/add/AddParts.kt`, `ui/Widgets2.kt` (keep the shared signatures), `ui/Buttons.kt`, `ui/Selection.kt`, `ui/Components.kt`, `res/values/strings_f.xml`, new `strings_r7a.xml` | 1, 13, 16, 17, 23; 3 (plate items survive rotation/process death); 6 (plate: "Discard plate?" on back when it has items); 22 (Food detail stepper labels); 4 and 20 in your files; 25 (hard-coded strings in your files); 29 (Food detail title) |
+| **B** | Shell, theme and performance | `MainActivity.kt`, `ui/shell/Shell.kt`, `ui/shell/BottomBar.kt`, `ui/Nav.kt`, `ui/Feedback.kt`, `ui/Icons.kt`, `ui/theme/*.kt` (keep the shared tokens), `res/values*/themes.xml`, `res/values*/colors.xml`, `AndroidManifest.xml`, `app/build.gradle.kts`, `app/proguard-rules.pro`, new `app/src/main/baseline-prof.txt`, new `strings_r7b.xml` | 2, 3 (SaveableStateHolder per destination in Shell), 9, 15, 27; 25 (Nav/tab labels) |
+| **C** | Today, history and insights | `ui/screens/Today.kt`, `ui/screens/today/*.kt`, `ui/screens/tracking/History.kt`, `ui/screens/Insights.kt`, `ui/screens/insights/*.kt`, `ui/screens/QuickLook.kt`, `res/values/strings_g.xml`, new `strings_r7c.xml` | 4, 10, 12, 14, 19, 20, 21 (Today gutter → `Space.gutter`), 22 (meal rows, week arrows), 24, 26; 11 (use `targetKcalOn(date)` for every past-day judgement in History/Insights/week strip); 29 (Today weight title shows the trend, like Weight); 25 in your files |
+| **D** | Meals, editors, settings and tracking | `ui/screens/Meals.kt`, `ui/screens/MyFoods.kt`, `ui/screens/meals/*.kt`, `ui/screens/SmartTargetScreen.kt`, `ui/screens/Onboarding.kt`, `ui/screens/AccentPicker.kt`, `ui/screens/settings/*.kt`, `ui/screens/tracking/Weight.kt`, `ui/screens/tracking/Liquids.kt`, `ui/screens/tracking/Common.kt`, `data/Export.kt`, `res/values/strings_i.xml`, `res/values/strings_d.xml`, `res/values/strings_a.xml`, `res/values/strings_b.xml`, new `strings_r7d.xml` | 5 (use `heroBg`/`onHero`), 6 (recipe/food editors: Discard? dialog via BackHandler + TopBar back), 8, 18, 21 (editors → `Space.gutter`), 28 (use `InputDialog(validate=…)` at every numeric call site you own: goal weight 20–300 kg, water goal 0.5–6 L, grams 1–5000), 29 (About shows the real version via `packageManager.getPackageInfo`; backup file renamed to `unavu-backup.json` while still reading the old name; weight card wording; hide "Step 1 of 2" and StepBar when editing details; Liquids heading uses the day title), 30, 20 and 25 in your files; Goals uses `mealShare` |
+| **E** | Data, parser, quick add and widget | `data/*.kt` (Calc.kt, Parser.kt, Store.kt, Models.kt, Smart.kt, Report.kt, Food.kt, FoodDb.kt, Nutrients.kt; keep the shared signatures), `ui/AppViewModel.kt`, `ui/screens/QuickAdd.kt`, `widget/Widgets.kt`, `work/Background.kt`, `res/xml/widget_*.xml`, new `res/layout/` widget preview files, `app/src/test/**`, new `strings_r7e.xml` | 7 (parser "water/thanni/தண்ணீர்" + amount/unit → water ml, shown as a 💧 row in quick add, never "Add to My foods"; with tests); 11 (per-day target history: when the target changes, record it with the date it took effect; implement `targetKcalOn`; don't apply weigh-in-driven target changes silently: show a snackbar "Target now X kcal · Undo" or follow Smart target's ask-first behaviour, your call, explained in notes); 3 (QuickAdd overrides/comboItems saveable); 6 (quick-add draft kept for 10 min after ✕/scrim, restored on reopen); 31; 4 (a unit test that meal shares from `mealShare` are consistent); 25 in your files (leave `Meal.label` as is, since others use it) |
+
+If a defect needs a change in a file you don't own, write the request in your notes rather than making it.
