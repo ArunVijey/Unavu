@@ -1,6 +1,15 @@
 package app.unavu.ui
 
 import app.unavu.ui.theme.edge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -98,27 +107,59 @@ fun MealPicker(selected: Meal?, modifier: Modifier = Modifier, cheatLabel: Strin
     }
 }
 
+/**
+ * The one amount stepper used everywhere (Customise, Food detail, plate rows): two 48 dp round buttons around a
+ * fixed-width value slot, so nothing shifts as the digits change. The value slides up/down with each step
+ * (instant under reduced motion). [itemName] makes TalkBack say "Increase Idli" instead of a bare "Increase".
+ * When [onBelowMin] is set, "−" at the minimum calls it (e.g. remove the item) instead of doing nothing.
+ */
 @Composable
-fun Stepper(value: Double, step: Double, min: Double = step, modifier: Modifier = Modifier, onChange: (Double) -> Unit) {
-    val c = U.c
+fun Stepper(
+    value: Double,
+    step: Double,
+    min: Double = step,
+    modifier: Modifier = Modifier,
+    itemName: String? = null,
+    slotWidth: androidx.compose.ui.unit.Dp = 48.dp,
+    onBelowMin: (() -> Unit)? = null,
+    onChange: (Double) -> Unit,
+) {
     val haptic = LocalHapticFeedback.current
-    val dec = stringResource(R.string.d_decrease)
-    val inc = stringResource(R.string.d_increase)
-    Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-        Box(
-            Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onChange((value - step).coerceAtLeast(min)) }
-                .semantics { contentDescription = dec },
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(Modifier.size(34.dp).clip(CircleShape).border(1.5.dp, c.line, CircleShape), contentAlignment = Alignment.Center) { Text("−", style = U.t.title) }
+    val reduced = LocalReducedMotion.current
+    val dec = if (itemName != null) stringResource(R.string.f_decrease, itemName) else stringResource(R.string.d_decrease)
+    val inc = if (itemName != null) stringResource(R.string.f_increase, itemName) else stringResource(R.string.d_increase)
+    val canDec = value - step >= min - 1e-9 || onBelowMin != null
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        StepCircle("−", dec, canDec) {
+            haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+            if (value - step >= min - 1e-9) onChange(value - step) else onBelowMin?.invoke()
         }
-        Text(fmtQty(value), style = U.t.titleS, fontWeight = FontWeight.ExtraBold, modifier = Modifier.widthIn(min = 36.dp), textAlign = TextAlign.Center)
-        Box(
-            Modifier.size(48.dp).clip(CircleShape).clickable(role = Role.Button) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onChange(value + step) }
-                .semantics { contentDescription = inc },
-            contentAlignment = Alignment.Center,
-        ) {
-            Box(Modifier.size(34.dp).clip(CircleShape).border(1.5.dp, c.line, CircleShape), contentAlignment = Alignment.Center) { Text("+", style = U.t.title) }
+        AnimatedContent(
+            value, label = "stepperValue", contentAlignment = Alignment.Center,
+            modifier = Modifier.width(slotWidth).clearAndSetSemantics { },
+            transitionSpec = {
+                if (reduced) EnterTransition.None togetherWith ExitTransition.None
+                else {
+                    val up = targetState > initialState
+                    (slideInVertically(tween(Motion.SHORT, easing = Motion.EmphasizedDecelerate)) { if (up) it / 2 else -it / 2 } + fadeIn(tween(Motion.SHORT))) togetherWith
+                        (slideOutVertically(tween(Motion.SHORT, easing = Motion.EmphasizedAccelerate)) { if (up) -it / 2 else it / 2 } + fadeOut(tween(Motion.XSHORT))) using SizeTransform(clip = false)
+                }
+            },
+        ) { q -> Text(fmtQty(q), style = U.t.titleS, fontWeight = FontWeight.ExtraBold, textAlign = TextAlign.Center, maxLines = 1) }
+        StepCircle("+", inc, true) { haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove); onChange(value + step) }
+    }
+}
+
+@Composable
+private fun StepCircle(glyph: String, desc: String, enabled: Boolean, onClick: () -> Unit) {
+    val c = U.c
+    Box(
+        Modifier.size(48.dp).pressScale().clip(CircleShape).clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = desc },
+        contentAlignment = Alignment.Center,
+    ) {
+        Box(Modifier.size(34.dp).clip(CircleShape).border(1.5.dp, c.line, CircleShape), contentAlignment = Alignment.Center) {
+            Text(glyph, style = U.t.title, color = if (enabled) c.ink else c.ink2.copy(alpha = 0.45f))
         }
     }
 }
@@ -189,14 +230,24 @@ fun ConfirmDialog(title: String, text: String, confirm: String, destructive: Boo
 }
 
 @Composable
-fun InputDialog(title: String, label: String, initial: String, numeric: Boolean = false, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+/**
+ * Single-field dialog. [validate] returns an error message for invalid input (shown under the field, Save disabled),
+ * or null when the value is fine.
+ */
+fun InputDialog(title: String, label: String, initial: String, numeric: Boolean = false, validate: ((String) -> String?)? = null, onDismiss: () -> Unit, onSave: (String) -> Unit) {
     val c = U.c
     var v by rememberSaveable { mutableStateOf(initial) }
+    val error = if (v.isBlank()) null else validate?.invoke(v)
     AlertDialog(
         onDismissRequest = onDismiss, containerColor = c.sf,
         title = { Text(title, style = U.t.title) },
-        text = { if (numeric) NumberField(v, label) { v = it } else TextField(v, label) { v = it } },
-        confirmButton = { TextButton({ onSave(v); onDismiss() }, enabled = v.isNotBlank()) { Text(stringResource(R.string.d_save), color = c.accInk, style = U.t.label, fontWeight = FontWeight.Bold) } },
+        text = {
+            Column {
+                if (numeric) NumberField(v, label) { v = it } else TextField(v, label) { v = it }
+                if (error != null) Text(error, style = U.t.caption, color = c.chiInk, modifier = Modifier.padding(top = 6.dp).semantics { error(error) })
+            }
+        },
+        confirmButton = { TextButton({ onSave(v); onDismiss() }, enabled = v.isNotBlank() && error == null) { Text(stringResource(R.string.d_save), color = c.accInk, style = U.t.label, fontWeight = FontWeight.Bold) } },
         dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.d_cancel), color = c.ink2, style = U.t.label) } },
     )
 }

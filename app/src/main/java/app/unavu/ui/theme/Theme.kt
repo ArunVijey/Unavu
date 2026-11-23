@@ -1,5 +1,7 @@
 package app.unavu.ui.theme
 
+import androidx.compose.ui.unit.dp
+
 import androidx.compose.ui.text.font.FontSynthesis
 import android.app.Activity
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -60,7 +62,18 @@ data class AppColors(
     val blueInk: Color = blue,
     /** Placeholder text (≥4.5:1 on bg / sf / sf2). */
     val hint: Color = ink2,
+    /** Solid "hero" card background (Smart target, recipe/food totals) and the text on it: ≥4.5:1 in every palette. */
+    val heroBg: Color = leaf,
+    val onHero: Color = Color.White,
 )
+
+/** Spacing tokens shared by every screen. */
+object Space {
+    /** Left/right page gutter: every screen uses this, so content never jumps on tab switch. */
+    val gutter = 16.dp
+    /** Gap between stacked cards. */
+    val cardGap = 12.dp
+}
 
 const val DEFAULT_ACCENT = 0xFFF7C600.toInt()
 
@@ -114,6 +127,7 @@ val DarkColors = AppColors(
     blue = Color(0xFF7C9DD1), blueS = Color(0xFF1F2A3B),
     m3 = Color(0xFFE08B55), scrim = Color(0x8C0A0A09), dark = true,
     chiInk = Color(0xFFF06B6B), blueInk = Color(0xFF7C9DD1), hint = Color(0xFFA39E93),
+    heroBg = Color(0xFF1C3326), onHero = Color(0xFFF2EEE6),
 )
 
 val AmoledColors = DarkColors.copy(
@@ -121,6 +135,7 @@ val AmoledColors = DarkColors.copy(
     ink2 = Color(0xFF9C978C), leafS = Color(0xFF132519), turS = Color(0xFF2A210D),
     chiS = Color(0xFF2E1616), blueS = Color(0xFF151E2B), scrim = Color(0x99000000),
     hint = Color(0xFF9C978C),
+    heroBg = Color(0xFF132519), onHero = Color(0xFFF2EEE6),
 )
 
 val LocalColors = staticCompositionLocalOf { LightColors }

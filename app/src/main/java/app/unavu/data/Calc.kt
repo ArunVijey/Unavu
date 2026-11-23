@@ -54,6 +54,20 @@ fun targetsFor(p: Profile, smart: SmartTarget? = null): Targets {
 
 fun AppData.targets(): Targets? = profile?.let { targetsFor(it, smart) }
 
+/**
+ * The daily kcal target that applied on [date] (ISO). Past days keep the target they were judged against, so a later
+ * weigh-in or goal change doesn't recolour history. SKELETON: returns today's target until per-day history exists.
+ */
+fun AppData.targetKcalOn(date: String): Int? = targets()?.kcal
+
+/** One meal's share of the day's kcal target: the single rounding rule used by every screen. */
+fun mealShare(targetKcal: Int, split: List<Double>, meal: Meal): Int =
+    (targetKcal * (split.getOrNull(meal.ordinal) ?: 0.0)).roundToInt()
+
+/** Every whole number shown to people goes through this: Indian grouping ("2,064", "1,00,000"). */
+fun fmtInt(v: Int): String = java.text.NumberFormat.getIntegerInstance(java.util.Locale.forLanguageTag("en-IN")).format(v)
+fun fmtInt(v: Double): String = fmtInt(v.roundToInt())
+
 val DATE: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
 val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm")
 fun today(): String = LocalDate.now().format(DATE)
