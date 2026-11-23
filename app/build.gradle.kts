@@ -37,6 +37,11 @@ android {
     }
 
     buildTypes {
+        debug {
+            // installs next to the release app (own package + data), so reviews never touch real data
+            applicationIdSuffix = ".review"
+            versionNameSuffix = "-review"
+        }
         release {
             // shrunk + optimised; signed with the release key when ../signing/keystore.properties exists
             isMinifyEnabled = true
