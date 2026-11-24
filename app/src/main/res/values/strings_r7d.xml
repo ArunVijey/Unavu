@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Round 7, agent D: Meals › My foods, the food/recipe editors, settings and tracking. -->
+<resources>
+    <!-- Shared -->
+    <string name="r7d_kcal">%1$s kcal</string>
+    <string name="r7d_grams">%1$s g</string>
+    <string name="r7d_ml">%1$s ml</string>
+    <string name="r7d_icon">Icon</string>
+
+    <!-- Meals › My foods (foods + recipes in one place) -->
+    <string name="r7d_tab_my_foods">My foods</string>
+    <string name="r7d_sec_foods">Foods</string>
+    <string name="r7d_sec_recipes">Recipes</string>
+    <string name="r7d_sec_count">%1$s · %2$d</string>
+    <string name="r7d_sec_foods_sub">Packs, menus and anything you know the calories of</string>
+    <string name="r7d_sec_recipes_sub">Home dishes, worked out from their raw ingredients (IFCT 2017)</string>
+    <string name="r7d_add_food">＋ Add food</string>
+    <string name="r7d_add_recipe">＋ Build recipe</string>
+    <string name="r7d_add_food_desc">Add a food by its calories</string>
+    <string name="r7d_add_recipe_desc">Build a recipe from ingredients</string>
+    <string name="r7d_foods_empty">Ate something new? Add it once with its calories, from the pack, the menu or a good guess. It then shows up in search, typing and the plate builder.</string>
+    <string name="r7d_recipes_empty">Build a home dish from its ingredients, like Amma’s puli kuzhambu. Every nutrient is worked out for you.</string>
+    <string name="r7d_just_saved">Saved</string>
+    <string name="r7d_my_foods_sub">%1$s · %2$s</string>
+    <plurals name="r7d_n_foods">
+        <item quantity="one">%d food</item>
+        <item quantity="other">%d foods</item>
+    </plurals>
+    <plurals name="r7d_n_recipes">
+        <item quantity="one">%d recipe</item>
+        <item quantity="other">%d recipes</item>
+    </plurals>
+
+    <!-- Leaving an editor with unsaved work -->
+    <string name="r7d_discard_recipe_title">Discard this recipe?</string>
+    <string name="r7d_discard_food_title">Discard this food?</string>
+    <string name="r7d_discard_changes_title">Discard your changes?</string>
+    <string name="r7d_discard_body">What you’ve entered here won’t be saved.</string>
+    <string name="r7d_keep_editing">Keep editing</string>
+    <string name="r7d_discard">Discard</string>
+
+    <!-- Recipe editor -->
+    <string name="r7d_recipe_new">New recipe</string>
+    <string name="r7d_recipe_edit">Edit recipe</string>
+    <string name="r7d_recipe_know_title">Know the calories, protein and fat already?</string>
+    <string name="r7d_recipe_know_body">From a pack label, a menu or a guess: tap here to type the values in directly instead of building from ingredients.</string>
+    <string name="r7d_recipe_name">Recipe name, e.g. Amma’s puli kuzhambu</string>
+    <string name="r7d_ingredients_label">Ingredients (raw weight) · from IFCT 2017</string>
+    <string name="r7d_ingredient_row">%1$s, %2$s g, %3$s kilocalories. Tap to change the amount.</string>
+    <string name="r7d_ing_search">Add ingredient: toor dal, tamarind, oil…</string>
+    <string name="r7d_no_match">No match. Try another name, e.g. “red gram” for toor dal.</string>
+    <string name="r7d_per100">%1$s kcal / 100 g · %2$s</string>
+    <string name="r7d_add_named">Add %1$s</string>
+    <string name="r7d_remove_named">Remove %1$s</string>
+    <string name="r7d_after_cooking">After cooking</string>
+    <string name="r7d_cooked_total">Cooked total %1$s (raw %2$s)</string>
+    <string name="r7d_serving_unit">Serving unit</string>
+    <string name="r7d_unit_equals">1 %1$s = ? %2$s</string>
+    <string name="r7d_is_drink">It’s a drink</string>
+    <string name="r7d_cook_tip">Tip: weigh the pot empty and full after cooking to get the cooked total.</string>
+    <string name="r7d_per_unit_servings">Per %1$s · makes %2$s servings</string>
+    <string name="r7d_macros_line">P %1$s · C %2$s · F %3$s g</string>
+    <string name="r7d_sodium_line">Sodium %1$s mg</string>
+    <string name="r7d_save_recipe">Save recipe</string>
+    <string name="r7d_save_changes">Save changes</string>
+    <string name="r7d_raw_grams">Raw grams in the whole batch</string>
+    <string name="r7d_grams_range">Enter 1 to 5,000 g</string>
+    <string name="r7d_why_ingredients">Add at least one ingredient to save</string>
+    <string name="r7d_why_unit">Enter how much one serving weighs to save</string>
+
+    <!-- My food editor -->
+    <string name="r7d_food_new">New food</string>
+    <string name="r7d_food_edit">Edit food</string>
+    <string name="r7d_food_name">Name, e.g. Chicken shawarma roll (Arabian Hut)</string>
+    <string name="r7d_serving">Serving</string>
+    <string name="r7d_unit_hint">Unit (piece, plate, cup…)</string>
+    <string name="r7d_unit_equals_opt">1 %1$s = ? %2$s (optional)</string>
+    <string name="r7d_is_drink_liquids">It’s a drink (counts in Liquids)</string>
+    <string name="r7d_nutrition">Nutrition</string>
+    <string name="r7d_per_unit_seg">Per %1$s</string>
+    <string name="r7d_per100_seg">Per 100 %1$s (pack label)</string>
+    <string name="r7d_need_serving">Enter how many %1$s one %2$s is, above, so the label values can be converted.</string>
+    <string name="r7d_kcal_required">Calories (kcal) · required</string>
+    <string name="r7d_protein_g">Protein g</string>
+    <string name="r7d_carbs_g">Carbs g</string>
+    <string name="r7d_fat_g">Fat g</string>
+    <string name="r7d_fibre_g">Fibre g</string>
+    <string name="r7d_sugar_g">Added sugar g</string>
+    <string name="r7d_satfat_g">Sat. fat g</string>
+    <string name="r7d_sodium_mg">Sodium mg</string>
+    <string name="r7d_calcium_mg">Calcium mg</string>
+    <string name="r7d_iron_mg">Iron mg</string>
+    <string name="r7d_more_nutrients">More: sugar, sat fat, sodium, calcium, iron</string>
+    <string name="r7d_macro_mismatch">Heads-up: protein, carbs and fat add up to %1$s kcal, not %2$s. Worth a second look.</string>
+    <string name="r7d_values_tip">Don’t know the values? Calories alone is fine. Protein, carbs and fat can stay empty.</string>
+    <string name="r7d_one_unit">One %1$s</string>
+    <string name="r7d_save_food">Save food</string>
+
+    <!-- Settings -->
+    <string name="r7d_version">Version %1$s</string>
+    <string name="r7d_share_name">%1$s share</string>
+    <string name="r7d_daily_water_name">daily water</string>
+    <string name="r7d_water_caption">%1$s L · about %2$d glasses of 250 ml</string>
+    <string name="r7d_split_line">%1$d%% · %2$s kcal</string>
+
+    <!-- Smart target (kcal numbers grouped, e.g. 2,064) -->
+    <string name="r7d_smart_burn">Burn %1$s kcal · %2$s</string>
+    <string name="r7d_smart_new_est">New estimate: you burn about %1$s kcal/day</string>
+    <string name="r7d_smart_new_target">That makes your target %1$s kcal (now %2$s).</string>
+    <string name="r7d_smart_not_enough_body">It needs 4 weeks of mostly-logged days and regular weigh-ins. Until then the formula is used (%1$s kcal burn).</string>
+    <string name="r7d_smart_formula_conf">Formula says %1$s · confidence %2$s</string>
+    <string name="r7d_smart_kcal_day">%1$s kcal/day</string>
+    <string name="r7d_smart_use_burn">Use %1$s kcal burn</string>
+    <string name="r7d_smart_reset_body">Your target goes back to the formula (%1$s kcal burn) and the estimate history is cleared.</string>
+    <string name="r7d_kcal_range">Enter a target between 1,000 and 6,000 kcal</string>
+
+    <!-- Onboarding -->
+    <string name="r7d_eg">e.g. %1$s</string>
+    <string name="r7d_enter_body">Enter your age, height and weight to see your plan.</string>
+
+    <!-- Weight and liquids -->
+    <string name="r7d_range_1w">1W</string>
+    <string name="r7d_range_1m">1M</string>
+    <string name="r7d_range_3m">3M</string>
+    <string name="r7d_goal_kg_label">Goal weight in kg</string>
+    <string name="r7d_goal_range">Enter a weight between 20 and 300 kg</string>
+    <string name="r7d_water_range">Enter 0.5 to 6 L</string>
+
+    <!-- Backup messages (stored as the last-run message and shown in Settings › Backup) -->
+    <string name="r7d_backup_done">4 files updated</string>
+    <string name="r7d_backup_no_folder">No backup folder chosen yet</string>
+    <string name="r7d_backup_cant_reach">Can’t reach the backup folder. Pick it again in Settings › Backup.</string>
+    <string name="r7d_backup_cant_create">Couldn’t create %1$s</string>
+    <string name="r7d_backup_cant_write">Couldn’t write %1$s</string>
+    <string name="r7d_restore_cant_open">Couldn’t open the file you picked.</string>
+    <string name="r7d_restore_not_backup">That file isn’t an Unavu backup, so nothing was changed.</string>
+    <string name="r7d_restore_newer">This backup comes from a newer version of Unavu. Update the app first.</string>
+    <string name="r7d_err_no_access">Unavu no longer has access to that folder. Pick it again in Settings › Backup.</string>
+    <string name="r7d_err_not_there">The file or folder isn’t there any more.</string>
+    <string name="r7d_err_io">Couldn’t read or write the file (%1$s).</string>
+    <string name="r7d_err_storage">storage error</string>
+    <string name="r7d_err_generic">Something went wrong.</string>
+</resources>

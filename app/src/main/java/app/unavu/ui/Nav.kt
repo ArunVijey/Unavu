@@ -1,6 +1,8 @@
 package app.unavu.ui
 
+import androidx.annotation.StringRes
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.snapshotFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
@@ -9,6 +11,7 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.staticCompositionLocalOf
+import app.unavu.R
 import app.unavu.data.AppData
 import app.unavu.data.Meal
 import app.unavu.data.Store
@@ -37,8 +40,14 @@ sealed interface Page {
     @Serializable data class MyFood(val id: String?, val name: String = "") : Page
 }
 
+/** The 4 root tabs. Labels are string resources (serialized by name, so renaming a label never breaks saved state). */
 @Serializable
-enum class Tab(val glyph: NavGlyph, val label: String) { TODAY(NavGlyph.TODAY, "Today"), INSIGHTS(NavGlyph.INSIGHTS, "Insights"), MEALS(NavGlyph.MEALS, "Meals"), SETTINGS(NavGlyph.SETTINGS, "Settings") }
+enum class Tab(val glyph: NavGlyph, @StringRes val labelRes: Int) {
+    TODAY(NavGlyph.TODAY, R.string.b_tab_today),
+    INSIGHTS(NavGlyph.INSIGHTS, R.string.b_tab_insights),
+    MEALS(NavGlyph.MEALS, R.string.b_tab_meals),
+    SETTINGS(NavGlyph.SETTINGS, R.string.b_tab_settings),
+}
 
 @Serializable
 private class NavState(val stack: List<Page> = emptyList(), val tab: Tab = Tab.TODAY, val date: String? = null, val quickAdd: QuickAddRequest? = null)
@@ -78,7 +87,11 @@ class Nav(val store: Store, restored: String? = null) {
 data class QuickAddRequest(val meal: Meal? = null, val mode: String = "FOOD")
 
 val LocalNav = staticCompositionLocalOf<Nav> { error("no nav") }
-/** Static: fed from the ViewModel's StateFlow in MainActivity; readers recompose when the data changes. */
-val LocalData = staticCompositionLocalOf { AppData() }
+/**
+ * The whole app data, fed from the Store's StateFlow in MainActivity.
+ * Dynamic (not static) on purpose: a write (e.g. one glass of water) recomposes only the composables that read
+ * `LocalData.current`, instead of invalidating the entire tree under the provider.
+ */
+val LocalData = compositionLocalOf { AppData() }
 
 val nav: Nav @Composable get() = LocalNav.current

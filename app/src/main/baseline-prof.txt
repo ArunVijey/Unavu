@@ -1,0 +1,53 @@
+# Starter baseline profile for Unavu (R8-compatible human-readable format; flags: H hot, S startup, P post-startup).
+# Wildcards cover whole packages so the file keeps working as classes are added or renamed. A generated profile
+# (Macrobenchmark: onboarding -> Today -> quick add -> plate) can replace this later without any other change.
+
+# process and activity start-up: Application, splash, store load, first frame
+HSPLapp/unavu/UnavuApp;->**(**)**
+HSPLapp/unavu/MainActivity;->**(**)**
+HSPLapp/unavu/MainActivityKt;->**(**)**
+Lapp/unavu/UnavuApp;
+Lapp/unavu/MainActivity;
+Lapp/unavu/MainActivity$*;
+
+# data layer: store load/update, JSON, calculations, parser, food database
+HSPLapp/unavu/data/**;->**(**)**
+Lapp/unavu/data/**;
+
+# theme, motion, navigation, shared widgets, feedback
+HSPLapp/unavu/ui/theme/**;->**(**)**
+Lapp/unavu/ui/theme/**;
+HSPLapp/unavu/ui/Nav*;->**(**)**
+HSPLapp/unavu/ui/AppViewModel*;->**(**)**
+HSPLapp/unavu/ui/Feedback*;->**(**)**
+HSPLapp/unavu/ui/Buttons*;->**(**)**
+HSPLapp/unavu/ui/Components*;->**(**)**
+HSPLapp/unavu/ui/Widgets2*;->**(**)**
+HSPLapp/unavu/ui/Icons*;->**(**)**
+HSPLapp/unavu/ui/Selection*;->**(**)**
+Lapp/unavu/ui/*;
+
+# shell: pages host, bottom bar, onboarding host, snackbars, predictive back
+HSPLapp/unavu/ui/shell/**;->**(**)**
+Lapp/unavu/ui/shell/**;
+
+# Today (first screen after launch) and its parts
+HSPLapp/unavu/ui/screens/TodayKt*;->**(**)**
+HSPLapp/unavu/ui/screens/today/**;->**(**)**
+Lapp/unavu/ui/screens/today/**;
+
+# quick add sheet (the most used flow) and the plate it shares parts with
+HSPLapp/unavu/ui/screens/QuickAdd*;->**(**)**
+HSPLapp/unavu/ui/screens/add/**;->**(**)**
+HSPLapp/unavu/ui/screens/PlateBuilder*;->**(**)**
+Lapp/unavu/ui/screens/QuickAdd*;
+Lapp/unavu/ui/screens/add/**;
+
+# other root tabs are touched right after start-up (tab switch), so keep them warm too
+HSPLapp/unavu/ui/screens/Insights*;->**(**)**
+HSPLapp/unavu/ui/screens/insights/**;->**(**)**
+HSPLapp/unavu/ui/screens/Meals*;->**(**)**
+HSPLapp/unavu/ui/screens/settings/SettingsScreen*;->**(**)**
+
+# widgets and background work are started from the Application / receivers
+HSPLapp/unavu/work/**;->**(**)**

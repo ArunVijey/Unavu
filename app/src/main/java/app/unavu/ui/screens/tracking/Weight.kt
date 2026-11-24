@@ -47,6 +47,7 @@ import app.unavu.ui.Status
 import app.unavu.ui.StatusBadge
 import app.unavu.ui.TopBar
 import app.unavu.ui.nav
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
@@ -80,7 +81,7 @@ fun WeightScreen() {
         TopBar(stringResource(R.string.g_wt_title), onBack = { nav.pop() }) {
             IconCircle("＋", contentDescription = stringResource(R.string.g_wt_add)) { nav.quickAdd.value = QuickAddRequest(mode = "WEIGHT") }
         }
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = Space.gutter, end = Space.gutter, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(Space.cardGap)) {
             if (all.isEmpty()) item(key = "empty", contentType = "empty") {
                 AppCard { EmptyState("⚖️", stringResource(R.string.g_wt_title), stringResource(R.string.g_wt_need_two), stringResource(R.string.g_wt_log_first)) { nav.quickAdd.value = QuickAddRequest(mode = "WEIGHT") } }
             } else item(key = "summary", contentType = "card") {
@@ -107,7 +108,7 @@ fun WeightScreen() {
                         }
                     }
                     Spacer(Modifier.height(10.dp))
-                    SlidingSegmented(listOf("1W", "1M", "3M", stringResource(R.string.g_wt_all)), range) { range = it }
+                    SlidingSegmented(listOf(stringResource(R.string.r7d_range_1w), stringResource(R.string.r7d_range_1m), stringResource(R.string.r7d_range_3m), stringResource(R.string.g_wt_all)), range) { range = it }
                     Spacer(Modifier.height(8.dp))
                     if (shown.size >= 2) {
                         val start = LocalDate.parse(shown.first().date)
@@ -127,7 +128,7 @@ fun WeightScreen() {
             }
             items(rows, key = { "w-" + it.w.date }, contentType = { "weigh" }) { r ->
                 val w = r.w
-                val dateLabel = dayTitle(w.date)
+                val dateLabel = dayLabel(w.date)
                 val del = stringResource(R.string.g_wt_delete_desc, dateLabel)
                 val msg = stringResource(R.string.g_wt_deleted, dateLabel)
                 Column(Modifier.animateItem()) {
@@ -150,8 +151,14 @@ fun WeightScreen() {
         }
     }
     if (goalDialog) {
-        InputDialog(stringResource(R.string.g_wt_goal_dialog), "kg", goalW?.let { "%.1f".format(it) } ?: "", numeric = true, onDismiss = { goalDialog = false }) { v ->
-            v.toDoubleOrNull()?.takeIf { it in 20.0..300.0 }?.let { g -> store.update { d -> d.copy(profile = d.profile?.copy(goalWeightKg = g)) } }
+        val rangeError = stringResource(R.string.r7d_goal_range)
+        fun goalOf(v: String) = v.trim().toDoubleOrNull()?.takeIf { it in 20.0..300.0 }
+        InputDialog(
+            stringResource(R.string.g_wt_goal_dialog), stringResource(R.string.r7d_goal_kg_label), goalW?.let { "%.1f".format(it) } ?: "", numeric = true,
+            validate = { v -> if (goalOf(v) == null) rangeError else null },
+            onDismiss = { goalDialog = false },
+        ) { v ->
+            goalOf(v)?.let { g -> store.update { d -> d.copy(profile = d.profile?.copy(goalWeightKg = g)) } }
         }
     }
 }

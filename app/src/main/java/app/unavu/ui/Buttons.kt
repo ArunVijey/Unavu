@@ -83,8 +83,12 @@ fun PrimaryButton(
 fun SecondaryButton(text: String, modifier: Modifier = Modifier, onClick: () -> Unit) =
     PrimaryButton(text, modifier, color = U.c.sf2, textColor = U.c.ink, onClick = onClick)
 
+/**
+ * Round arrow button (back, close, previous/next). [enabled] = false draws it at 38 % alpha, ignores taps and
+ * exposes disabled semantics (e.g. "Next week" on the current week).
+ */
 @Composable
-fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, contentDescription: String? = null, onClick: () -> Unit) {
+fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, contentDescription: String? = null, enabled: Boolean = true, onClick: () -> Unit) {
     val desc = contentDescription ?: stringResource(
         when (dir) {
             Arrow.BACK -> R.string.d_back
@@ -94,11 +98,13 @@ fun ArrowButton(dir: Arrow, modifier: Modifier = Modifier, contentDescription: S
         },
     )
     Box(
-        modifier.size(48.dp).pressScale().clip(CircleShape).clickable(role = Role.Button, onClick = onClick).semantics { this.contentDescription = desc },
+        modifier.size(48.dp).then(if (enabled) Modifier.pressScale() else Modifier).clip(CircleShape)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick).semantics { this.contentDescription = desc },
         contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier.size(40.dp).then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = dir.ordinal) else Modifier)
+            Modifier.size(40.dp).graphicsLayer { alpha = if (enabled) 1f else 0.38f }
+                .then(if (U.sketch) Modifier.edge(U.c.ink.copy(alpha = 0.7f), 20.dp, 1.4.dp, seed = dir.ordinal) else Modifier)
                 .clip(CircleShape).background(U.c.sf2),
             contentAlignment = Alignment.Center,
         ) { ArrowIcon(dir) }

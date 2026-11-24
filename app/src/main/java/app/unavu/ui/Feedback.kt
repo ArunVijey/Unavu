@@ -15,7 +15,12 @@ import kotlinx.coroutines.launch
  */
 @Stable
 class Feedback(val host: SnackbarHostState, private val scope: CoroutineScope) {
+    /** When the latest message was requested (elapsedRealtime). Shell keeps one requested together with a navigation. */
+    @Volatile var requestedAtMs: Long = 0L
+        private set
+
     fun show(message: String, actionLabel: String? = null, onAction: (() -> Unit)? = null) {
+        requestedAtMs = android.os.SystemClock.elapsedRealtime()
         scope.launch {
             host.currentSnackbarData?.dismiss()
             val r = host.showSnackbar(message, actionLabel, withDismissAction = false, duration = if (actionLabel != null) SnackbarDuration.Long else SnackbarDuration.Short)

@@ -57,16 +57,6 @@ import app.unavu.ui.Tab
 import app.unavu.ui.theme.U
 import app.unavu.ui.theme.motionTween
 
-@Composable
-private fun tabLabel(t: Tab): String = stringResource(
-    when (t) {
-        Tab.TODAY -> R.string.b_tab_today
-        Tab.INSIGHTS -> R.string.b_tab_insights
-        Tab.MEALS -> R.string.b_tab_meals
-        Tab.SETTINGS -> R.string.b_tab_settings
-    },
-)
-
 /** Bottom tab bar + the turmeric add button. Tabs are one selectable group (Role.Tab, >= 48dp, ripple). */
 @Composable
 fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit) {
@@ -81,7 +71,7 @@ fun BottomBar(tab: Tab, onTab: (Tab) -> Unit, onAdd: () -> Unit) {
         Row(Modifier.weight(1f).selectableGroup(), horizontalArrangement = Arrangement.SpaceEvenly) {
             Tab.entries.forEach { t ->
                 val on = t == tab
-                val label = tabLabel(t)
+                val label = stringResource(t.labelRes)
                 val col by animateColorAsState(if (on) c.ink else c.ink2, motionTween(), label = "tabColor")
                 val ind by animateFloatAsState(if (on) 1f else 0f, motionTween(), label = "tabIndicator")
                 Column(

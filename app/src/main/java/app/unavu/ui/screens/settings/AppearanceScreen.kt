@@ -40,6 +40,7 @@ import app.unavu.ui.theme.GoogleSansFlex
 import app.unavu.ui.theme.InterFamily
 import app.unavu.ui.theme.Motion
 import app.unavu.ui.theme.motionTween
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 import androidx.compose.animation.animateColorAsState
 
@@ -52,7 +53,7 @@ fun AppearanceScreen() {
     val s = data.settings
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_appearance), onBack = { nav.pop() })
-        Column(Modifier.padding(horizontal = 18.dp)) {
+        Column(Modifier.padding(horizontal = Space.gutter)) {
             SectionLabel(stringResource(R.string.i_style))
             Segmented(listOf(stringResource(R.string.i_style_clean), stringResource(R.string.i_style_sketch)), if (s.sketch) 1 else 0) { i ->
                 store.update { d -> d.copy(settings = d.settings.copy(sketch = i == 1)) }

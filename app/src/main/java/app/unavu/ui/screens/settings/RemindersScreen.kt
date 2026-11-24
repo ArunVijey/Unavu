@@ -56,6 +56,7 @@ import app.unavu.ui.TimeDialog
 import app.unavu.ui.TopBar
 import app.unavu.ui.fmtTime
 import app.unavu.ui.nav
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 import app.unavu.work.Scheduler
 
@@ -91,7 +92,7 @@ fun RemindersScreen() {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_reminders_title), onBack = { nav.pop() })
-        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(horizontal = Space.gutter), verticalArrangement = Arrangement.spacedBy(Space.cardGap)) {
             if (!allowed) {
                 AppCard(color = c.chiS, border = null) {
                     Text(stringResource(R.string.i_notif_off_title), style = U.t.titleS.iBold(), color = c.chiInk, modifier = Modifier.semantics { heading() })

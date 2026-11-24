@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Widget picker previews: the app's Light tokens with the default turmeric accent (night values in values-night). -->
+<resources>
+    <color name="r7e_widget_card">#FFFFFFFF</color>
+    <color name="r7e_widget_chip">#FFF1ECE1</color>
+    <color name="r7e_widget_ink">#FF1C1B18</color>
+    <color name="r7e_widget_ink2">#FF5F5B52</color>
+    <color name="r7e_widget_acc">#FFF7C600</color>
+    <color name="r7e_widget_acc_ink">#FF806700</color>
+    <color name="r7e_widget_on_acc">#FF111111</color>
+</resources>

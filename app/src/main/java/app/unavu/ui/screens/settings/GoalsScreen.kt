@@ -42,7 +42,10 @@ import app.unavu.ui.Stepper
 import app.unavu.ui.TopBar
 import app.unavu.ui.nav
 import app.unavu.ui.Page
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
+import app.unavu.data.fmtInt
+import app.unavu.data.mealShare
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -62,10 +65,10 @@ fun GoalsScreen() {
     val chipsMin = stringResource(R.string.i_chips_min)
     Column(Modifier.fillMaxSize()) {
         TopBar(stringResource(R.string.i_goal_targets), onBack = { nav.pop() })
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = Space.gutter), verticalArrangement = Arrangement.spacedBy(Space.cardGap)) {
             AppCard(color = c.leafS, border = null) {
                 Text(stringResource(R.string.i_daily_target), color = c.leafInk, style = U.t.label.iBold())
-                Text(stringResource(R.string.i_kcal_big, t.kcal), color = c.ink, style = U.t.display.iBold())
+                Text(stringResource(R.string.i_kcal_big, fmtInt(t.kcal)), color = c.ink, style = U.t.display.iBold())
                 Text(stringResource(R.string.i_macros_line, t.protein, t.carbs, t.fat, t.fibre), color = c.ink, style = U.t.caption)
                 Text(stringResource(R.string.i_change_hint), color = c.leafInk, style = U.t.caption, modifier = Modifier.padding(top = 4.dp))
             }
@@ -73,13 +76,15 @@ fun GoalsScreen() {
 
             SectionLabel(stringResource(R.string.i_meal_split))
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 8.dp)) {
+                val fractions = split.map { it / 100.0 }
                 Meal.entries.forEachIndexed { i, m ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 52.dp).padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text("${m.emoji} ${m.label}", style = U.t.body, color = c.ink)
-                            Text("${split[i]}% · " + stringResource(R.string.i_kcal_n, (split[i] * t.kcal / 100.0).roundToInt()), style = U.t.caption, color = c.ink2)
+                            // same rounding as Today and the meal sheet (mealShare), so the numbers always agree
+                            Text(stringResource(R.string.r7d_split_line, split[i], fmtInt(mealShare(t.kcal, fractions, m))), style = U.t.caption, color = c.ink2)
                         }
-                        Stepper(split[i].toDouble(), 5.0, min = 0.0) { v ->
+                        Stepper(split[i].toDouble(), 5.0, min = 0.0, itemName = stringResource(R.string.r7d_share_name, m.label)) { v ->
                             split = ArrayList(split).also { it[i] = v.roundToInt().coerceIn(0, 80) }
                         }
                     }
@@ -100,9 +105,15 @@ fun GoalsScreen() {
             SectionLabel(stringResource(R.string.i_water_goal))
             AppCard {
                 Row(Modifier.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(R.string.i_daily_water), style = U.t.body, color = c.ink, modifier = Modifier.weight(1f))
-                    Stepper(data.settings.waterGoalMl / 1000.0, 0.25, min = 0.5) { v -> store.update { d -> d.copy(settings = d.settings.copy(waterGoalMl = (v * 1000).roundToInt())) } }
-                    Text(" " + stringResource(R.string.i_litres_unit, "%.2f".format(data.settings.waterGoalMl / 1000.0).trimEnd('0').trimEnd('.')), style = U.t.body.iBold(), color = c.ink)
+                    val litres = data.settings.waterGoalMl / 1000.0
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.i_daily_water), style = U.t.body, color = c.ink)
+                        // the stepper shows the number; the caption says what it means (no duplicated "2.5 L" beside it)
+                        Text(stringResource(R.string.r7d_water_caption, "%.2f".format(litres).trimEnd('0').trimEnd('.'), (data.settings.waterGoalMl / 250.0).roundToInt()), style = U.t.caption, color = c.ink2)
+                    }
+                    Stepper(litres, 0.25, min = 0.5, itemName = stringResource(R.string.r7d_daily_water_name)) { v ->
+                        store.update { d -> d.copy(settings = d.settings.copy(waterGoalMl = (v.coerceIn(0.5, 6.0) * 1000).roundToInt())) }
+                    }
                 }
             }
 

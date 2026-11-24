@@ -11,7 +11,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicText
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.ui.graphics.ColorProducer
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import app.unavu.data.fmtInt
+import app.unavu.data.mealShare
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -75,27 +85,39 @@ fun NutrientLook(d: NutrientDef, entries: List<LogEntry>, byMeal: Map<Meal, List
             )
         }
         TamilText(d.tamil)
+        val unitWord = spokenUnit(d.unit)
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 4.dp)) {
             Text(fmtNum(have), style = U.t.display, color = c.ink)
+            Spacer(Modifier.width(6.dp))
             Text(
-                stringResource(R.string.d_limit_target, fmtNum(target), d.unit, stringResource(if (d.limit) R.string.d_limit else R.string.d_target)),
+                stringResource(R.string.r7c_limit_target, fmtNum(target), d.unit, stringResource(if (d.limit) R.string.d_limit else R.string.d_target)),
                 style = U.t.bodyS, color = c.ink2, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 5.dp),
             )
         }
         Spacer(Modifier.height(6.dp))
-        Track((have / target).toFloat(), when (st) { Status.OK -> c.leaf; Status.LOW -> c.tur; else -> c.chi }, contentDescription = "${d.name} ${fmtNum(have)} / ${fmtNum(target)} ${d.unit}")
+        Track(
+            if (target > 0) (have / target).toFloat() else 0f, when (st) { Status.OK -> c.leaf; Status.LOW -> c.tur; else -> c.chi },
+            contentDescription = stringResource(R.string.d_nutrient_tile_desc, d.name, fmtNum(have), fmtNum(target), unitWord),
+        )
         SectionLabel(stringResource(R.string.d_by_meal))
         val perMeal = Meal.entries.map { m -> d.value(byMeal.getValue(m).total()) }
         val maxV = perMeal.maxOrNull()?.takeIf { it > 0 } ?: 1.0
-        val summary = Meal.entries.mapIndexed { i, m -> "${m.label} ${fmtNum(perMeal[i])} ${d.unit}" }.joinToString(", ")
+        val summary = Meal.entries.mapIndexed { i, m -> stringResource(R.string.r7c_by_meal_item, m.label, fmtNum(perMeal[i]), unitWord) }.joinToString(", ")
+        val labelStyle = U.t.caption
+        val labelFit = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = labelStyle.fontSize, stepSize = 0.5.sp)
+        val labelInk = c.ink2
         Row(
-            Modifier.fillMaxWidth().padding(top = 2.dp).semantics(mergeDescendants = true) { contentDescription = summary },
+            Modifier.fillMaxWidth().padding(top = 2.dp).clearAndSetSemantics { contentDescription = summary },
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom,
         ) {
             perMeal.forEachIndexed { i, v ->
                 Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
                     Box(Modifier.fillMaxWidth().height((22 * (v / maxV)).coerceAtLeast(2.0).dp).clip(RoundedCornerShape(5.dp)).background(colors[i].copy(alpha = if (v > 0) 1f else 0.25f)))
-                    Text(Meal.entries[i].label.take(6), style = U.t.caption, color = c.ink2, maxLines = 1)
+                    // Full meal name, shrunk to fit its column ("Breakfast", never "Breakf").
+                    BasicText(
+                        Meal.entries[i].label, style = labelStyle.copy(textAlign = TextAlign.Center), color = ColorProducer { labelInk },
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, autoSize = labelFit, modifier = Modifier.fillMaxWidth().padding(top = 2.dp),
+                    )
                 }
             }
         }
@@ -120,7 +142,7 @@ fun MealLook(
     val c = U.c
     val colors = mealColors(c)
     val kcal = list.total().kcal.roundToInt()
-    val share = (split[m.ordinal] * t.kcal).roundToInt()
+    val share = mealShare(t.kcal, split, m)
     val isCheat = list.isNotEmpty() && list.all { it.cheat }
     QuickLook(
         onDismiss = onDismiss,
@@ -135,22 +157,29 @@ fun MealLook(
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("${m.emoji} ${m.label}", style = U.t.title, modifier = Modifier.weight(1f))
             StatusBadge(
-                if (kcal > share) stringResource(R.string.d_over_share, kcal - share) else stringResource(R.string.d_under_share, share - kcal),
+                if (kcal > share) stringResource(R.string.r7c_over_share, fmtInt(kcal - share)) else stringResource(R.string.r7c_under_share, fmtInt(share - kcal)),
                 if (kcal > share) Status.OVER else Status.OK,
             )
         }
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 4.dp)) {
-            Text("$kcal", style = U.t.display, color = c.ink)
-            Text(stringResource(R.string.d_kcal_share, share), style = U.t.bodyS, color = c.ink2, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 5.dp))
+            Text(fmtInt(kcal), style = U.t.display, color = c.ink)
+            Spacer(Modifier.width(6.dp))
+            Text(stringResource(R.string.r7c_kcal_share, fmtInt(share)), style = U.t.bodyS, color = c.ink2, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 5.dp))
         }
         Spacer(Modifier.height(6.dp))
-        Track(kcal / share.toFloat(), if (kcal > share) c.chi else colors[m.ordinal], contentDescription = "${m.label} $kcal / $share kcal")
+        Track(
+            if (share > 0) kcal / share.toFloat() else 0f, if (kcal > share) c.chi else colors[m.ordinal],
+            contentDescription = stringResource(R.string.r7c_share_desc, m.label, fmtInt(kcal), fmtInt(share)),
+        )
         val mt = list.total()
         Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf(R.string.d_protein to mt.protein, R.string.d_carbs to mt.carbs, R.string.d_fat to mt.fat).forEach { (n, v) ->
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(c.sf2).padding(horizontal = 8.dp, vertical = 6.dp).semantics(mergeDescendants = true) {}) {
-                    Text(stringResource(n), style = U.t.caption, color = c.ink2, fontWeight = FontWeight.SemiBold)
-                    Text(stringResource(R.string.d_grams, v.roundToInt()), style = U.t.bodyS, fontWeight = FontWeight.Bold)
+                // Same 1-decimal rule as the hero chips (9.7 g in both places, never 9.7 vs 10).
+                val name = stringResource(n)
+                val spoken = stringResource(R.string.r7c_grams_spoken, name, fmtNum(v))
+                Column(Modifier.weight(1f).clip(RoundedCornerShape(10.dp)).background(c.sf2).padding(horizontal = 8.dp, vertical = 6.dp).clearAndSetSemantics { contentDescription = spoken }) {
+                    Text(name, style = U.t.caption, color = c.ink2, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.r7c_grams, fmtNum(v)), style = U.t.bodyS, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -165,7 +194,9 @@ fun MealLook(
                     Text("${f?.emoji} ${f?.name} · ${e.portionText()}", style = U.t.bodyS)
                     f?.choiceSummary(e.choices)?.takeIf { it.isNotBlank() }?.let { Text(it, style = U.t.caption, color = c.leafInk) }
                 }
-                Text("${e.nutr().kcal.roundToInt()}", style = U.t.bodyS, fontWeight = FontWeight.Bold)
+                val entryKcal = fmtInt(e.nutr().kcal)
+                val entryKcalSpoken = stringResource(R.string.r7c_kcal_spoken, entryKcal)
+                Text(entryKcal, style = U.t.bodyS, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { contentDescription = entryKcalSpoken })
                 RemoveButton { onDeleteEntry(e) }
             }
         }
@@ -183,28 +214,36 @@ fun BudgetLook(data: AppData, t: Targets, eaten: Int, left: Int, byMeal: Map<Mea
             StatusBadge(stringResource(R.string.d_pct_used, (eaten * 100.0 / t.kcal).roundToInt()), if (left >= 0) Status.OK else Status.OVER)
         }
         Row(verticalAlignment = Alignment.Bottom, modifier = Modifier.padding(top = 4.dp)) {
-            Text("${abs(left)}", style = U.t.display, color = c.ink)
-            Text(if (left >= 0) stringResource(R.string.d_of_kcal_left, t.kcal) else stringResource(R.string.d_kcal_over, t.kcal), style = U.t.bodyS, color = c.ink2, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 5.dp))
+            Text(fmtInt(abs(left)), style = U.t.display, color = c.ink)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                if (left >= 0) stringResource(R.string.r7c_of_kcal_left, fmtInt(t.kcal)) else stringResource(R.string.r7c_kcal_over, fmtInt(t.kcal)),
+                style = U.t.bodyS, color = c.ink2, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 5.dp),
+            )
         }
         SectionLabel(stringResource(R.string.d_meal_vs_share))
         Meal.entries.forEachIndexed { i, m ->
-            val k = byMeal.getValue(m).total().kcal.roundToInt(); val s = (split[i] * t.kcal).roundToInt()
+            val k = byMeal.getValue(m).total().kcal.roundToInt(); val s = mealShare(t.kcal, split, m)
             Row(Modifier.fillMaxWidth().padding(top = 6.dp)) {
                 Text(m.label, fontWeight = FontWeight.Bold, style = U.t.bodyS, modifier = Modifier.weight(1f))
-                Text("$k / $s", style = U.t.bodyS, color = if (k > s) c.chiInk else c.ink2)
+                Text(stringResource(R.string.r7c_hist_badge, fmtInt(k), fmtInt(s)), style = U.t.bodyS, color = if (k > s) c.chiInk else c.ink2)
             }
-            Track(k / s.toFloat(), if (k > s) c.chi else colors[i], Modifier.padding(top = 3.dp), height = 6.dp, contentDescription = "${m.label} $k / $s kcal")
+            Track(
+                if (s > 0) k / s.toFloat() else 0f, if (k > s) c.chi else colors[i], Modifier.padding(top = 3.dp), height = 6.dp,
+                contentDescription = stringResource(R.string.r7c_share_desc, m.label, fmtInt(k), fmtInt(s)),
+            )
         }
         SectionLabel(stringResource(R.string.d_how_target))
         val p = data.profile ?: return@QuickLook
-        SourceRow(stringResource(R.string.d_bmr), "${t.bmr}")
+        SourceRow(stringResource(R.string.d_bmr), fmtInt(t.bmr))
         SourceRow(
             if (data.smart.appliedBurn != null) stringResource(R.string.d_real_burn) else stringResource(R.string.d_daily_activity),
-            if (data.smart.appliedBurn != null) "${t.maintenance}" else "${t.maintenance - t.bmr}",
+            if (data.smart.appliedBurn != null) fmtInt(t.maintenance) else fmtInt(t.maintenance - t.bmr),
         )
+        // The label already carries the sign ("− Weight-loss goal"), so the value is the size of the change.
         SourceRow(
             stringResource(if (p.goalKcal < 0) R.string.d_goal_loss else if (p.goalKcal > 0) R.string.d_goal_gain else R.string.d_goal_maintain),
-            "${p.goalKcal}",
+            fmtInt(abs(p.goalKcal)),
         )
     }
 }

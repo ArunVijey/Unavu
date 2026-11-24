@@ -12,7 +12,7 @@
     <string name="i_sec_app">App</string>
     <string name="i_sec_about">About</string>
     <string name="i_goal_targets">Goal &amp; targets</string>
-    <string name="i_goal_targets_sub">%1$d kcal · meal split · water · home chips</string>
+    <string name="i_goal_targets_sub">%1$s kcal · meal split · water · home chips</string>
     <string name="i_my_portions">My portions</string>
     <plurals name="i_portions_remembered">
         <item quantity="one">%d food remembered</item>
@@ -25,17 +25,17 @@
     <string name="i_smart_auto">Automatic</string>
     <string name="i_smart_ask">Asks before changing</string>
     <string name="i_smart_manual">Set by you</string>
-    <string name="i_smart_pending"> · new estimate waiting</string>
+    <string name="i_smart_pending">new estimate waiting</string>
     <string name="i_appearance">Appearance</string>
     <string name="i_theme_system">System</string>
     <string name="i_theme_light">Light</string>
     <string name="i_theme_dark">Dark</string>
-    <string name="i_amoled_short"> · AMOLED</string>
+    <string name="i_amoled_short">AMOLED</string>
     <string name="i_backup">Backup</string>
     <string name="i_backup_none">Not set up yet</string>
     <string name="i_backup_not_run">Folder set · not run yet</string>
     <string name="i_backup_last">Last: %1$s</string>
-    <string name="i_backup_failed_suffix"> · failed</string>
+    <string name="i_backup_failed_suffix">failed</string>
     <string name="i_reminders">Reminders</string>
     <string name="i_reminders_on">%d on</string>
     <string name="i_reminders_off_perm">%d on · notifications blocked</string>
@@ -50,12 +50,12 @@
 
     <!-- Goals -->
     <string name="i_daily_target">Daily target</string>
-    <string name="i_kcal_big">%d kcal</string>
+    <string name="i_kcal_big">%1$s kcal</string>
     <string name="i_macros_line">P %1$d g · C %2$d g · F %3$d g · Fibre %4$d g</string>
     <string name="i_change_hint">Change your weight, activity or goal in your details.</string>
     <string name="i_edit_details">Edit my details &amp; goal</string>
     <string name="i_meal_split">Meal split · % of the day\'s calories</string>
-    <string name="i_kcal_n">%d kcal</string>
+    <string name="i_kcal_n">%1$s kcal</string>
     <string name="i_total_ok">Total 100% ✓</string>
     <string name="i_total_bad">Total %d%%: must add up to 100%%</string>
     <string name="i_save_split">Save split</string>
@@ -163,10 +163,10 @@
 
     <!-- About -->
     <string name="i_about_title">About &amp; food data</string>
-    <string name="i_about_app">Unavu 0.3</string>
+    <string name="i_about_app">Unavu</string>
     <string name="i_about_app_text">Personal calorie &amp; nutrient tracker for Tamil Nadu food. Everything stays on this phone.</string>
     <string name="i_numbers_title">Where the numbers come from</string>
-    <string name="i_numbers_text">• Ingredients: Indian Food Composition Tables 2017 (ICMR-NIN), %1$d items.\n• Dishes (%2$d): calculated from typical home recipes: raw ingredient weights ÷ cooked weight. Your choices (vegetables, dal, sugar, milk, oil level) change the numbers.\n• A few everyday items not in IFCT (salt, sugar, toned milk, curd, bread, Boost/Horlicks, sauces) use USDA or label values.\n• Fast-food items are home-recipe estimates, not official chain values.\n• Targets: Mifflin-St Jeor for calories; ICMR-NIN 2020 RDA for nutrients.</string>
+    <string name="i_numbers_text">• Ingredients: Indian Food Composition Tables 2017 (ICMR-NIN), %1$s items.\n• Dishes (%2$s): calculated from typical home recipes: raw ingredient weights ÷ cooked weight. Your choices (vegetables, dal, sugar, milk, oil level) change the numbers.\n• A few everyday items not in IFCT (salt, sugar, toned milk, curd, bread, Boost/Horlicks, sauces) use USDA or label values.\n• Fast-food items are home-recipe estimates, not official chain values.\n• Targets: Mifflin-St Jeor for calories; ICMR-NIN 2020 RDA for nutrients.</string>
     <string name="i_ifct_credit">IFCT 2017 data via @ifct2017/compositions (MIT)</string>
 
     <!-- Onboarding -->
@@ -201,7 +201,7 @@
     <string name="i_goal_lose_text">−%d to lose ~0.5 kg/week</string>
     <string name="i_goal_gain_text">+%d for lean gain</string>
     <string name="i_goal_maintain_text">maintain weight</string>
-    <string name="i_bmr_line">BMR %1$d · Maintenance %2$d · %3$s</string>
+    <string name="i_bmr_line">BMR %1$s · Maintenance %2$s · %3$s</string>
     <string name="i_macros">Macros</string>
     <string name="i_protein">🍗 Protein</string>
     <string name="i_carbs">🍚 Carbs</string>
@@ -212,8 +212,8 @@
     <string name="i_calcium">Calcium</string>
     <string name="i_sodium_limit">Sodium (limit)</string>
     <string name="i_sugar_limit">Added sugar (limit)</string>
-    <string name="i_mg">%d mg</string>
-    <string name="i_mg_limit">≤ %d mg</string>
+    <string name="i_mg">%1$s mg</string>
+    <string name="i_mg_limit">≤ %1$s mg</string>
     <string name="i_g">%d g</string>
     <string name="i_g_limit">≤ %d g</string>
 </resources>

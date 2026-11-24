@@ -1,13 +1,9 @@
 package app.unavu.ui.screens
 
-import androidx.compose.ui.platform.LocalResources
-import androidx.compose.foundation.shape.RoundedCornerShape
-import app.unavu.data.Store
-
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.border
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,13 +18,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -38,9 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -53,28 +51,29 @@ import app.unavu.R
 import app.unavu.data.Combo
 import app.unavu.data.FoodDb
 import app.unavu.data.Meal
+import app.unavu.data.Store
 import app.unavu.data.deleteCombo
-import app.unavu.data.deleteCustomFood
+import app.unavu.data.fmtInt
 import app.unavu.data.fmtQty
 import app.unavu.data.nutrFor
 import app.unavu.data.useCombo
 import app.unavu.ui.AppCard
-import app.unavu.ui.Fab
+import app.unavu.ui.EmptyState
 import app.unavu.ui.LocalData
 import app.unavu.ui.LocalFeedback
 import app.unavu.ui.MealPicker
 import app.unavu.ui.Page
-import app.unavu.ui.SecondaryButton
 import app.unavu.ui.SlidingSegmented
-import app.unavu.ui.EmptyState
-import app.unavu.ui.pressScale
 import app.unavu.ui.Status
 import app.unavu.ui.StatusBadge
 import app.unavu.ui.TopBar
 import app.unavu.ui.nav
+import app.unavu.ui.pressScale
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 import kotlin.math.roundToInt
 
+/** Meals tab: saved combos, and My foods (your own foods and recipes, see MyFoods.kt). */
 @OptIn(ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun MealsScreen() {
@@ -91,22 +90,30 @@ fun MealsScreen() {
     val filter = filterName?.let { n -> Meal.entries.firstOrNull { it.name == n } }
     var logComboId by rememberSaveable { mutableStateOf<String?>(null) }
     val undo = stringResource(R.string.f_undo)
+    val listState = rememberLazyListState()
+
+    // An editor opened from My foods just saved something: show that segment straight away (no flash of combos).
+    val focusId = MyFoodsFocus.id
+    val focusHere = focusId != null && data.customFoods.any { it.id == focusId }
+    LaunchedEffect(focusHere) { if (focusHere) tab = 1 }
+    val seg = if (focusHere) 1 else tab
 
     val combos = remember(data.combos, filter) {
         data.combos.filter { filter == null || it.meal == filter }.sortedWith(compareBy<Combo> { it.order }.thenByDescending { it.uses })
     }
-    val recipes = remember(data.customFoods) { data.customFoods.filter { it.facts == null } }
+    val myRows = remember(data.customFoods) { myFoodsRows(data.customFoods) }
+    if (seg == 1) FocusSavedFood(listState, myRows, firstIndex = 2)
 
     Box(Modifier.fillMaxSize()) {
-        LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(Modifier.fillMaxSize(), state = listState, contentPadding = PaddingValues(bottom = 110.dp), verticalArrangement = Arrangement.spacedBy(Space.cardGap)) {
             item(key = "top", contentType = "top") { TopBar(stringResource(R.string.f_meals_title)) }
             item(key = "tabs", contentType = "tabs") {
-                SlidingSegmented(listOf(stringResource(R.string.f_tab_combos), stringResource(R.string.f_tab_recipes)), tab, Modifier.padding(horizontal = 16.dp)) { tab = it }
+                SlidingSegmented(listOf(stringResource(R.string.f_tab_combos), stringResource(R.string.r7d_tab_my_foods)), seg, Modifier.padding(horizontal = Space.gutter)) { tab = it }
             }
-            if (tab == 0) {
+            if (seg == 0) {
                 // Filters only make sense once there is something to filter.
                 if (data.combos.isNotEmpty()) item(key = "filters", contentType = "filters") {
-                    FlowRow(Modifier.padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    FlowRow(Modifier.padding(horizontal = Space.gutter), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         ChoiceChip(stringResource(R.string.f_filter_all), filter == null) { filterName = null }
                         Meal.entries.forEach { m -> ChoiceChip(m.label, filter == m) { filterName = m.name } }
                     }
@@ -120,7 +127,7 @@ fun MealsScreen() {
                     val idx = combos.indexOf(cb)
                     var menu by rememberSaveable(cb.id) { mutableStateOf(false) }
                     val kcal = remember(cb) { cb.items.sumOf { FoodDb.get(it.foodId)?.nutrFor(it.qty, it.unit, it.choices)?.kcal ?: 0.0 }.roundToInt() }
-                    AppCard(onClick = { logComboId = cb.id }, padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = Modifier.padding(horizontal = 16.dp).animateItem()) {
+                    AppCard(onClick = { logComboId = cb.id }, padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = Modifier.padding(horizontal = Space.gutter).animateItem()) {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             Emoji(cb.emoji)
                             Column(Modifier.weight(1f)) {
@@ -131,7 +138,7 @@ fun MealsScreen() {
                                     Text(stringResource(R.string.f_used_times, cb.uses), style = t.caption, color = c.ink2)
                                 }
                             }
-                            Text(stringResource(R.string.f_kcal_plain, kcal), style = t.bodyS, fontWeight = FontWeight.ExtraBold)
+                            Text(stringResource(R.string.r7d_kcal, fmtInt(kcal)), style = t.bodyS, fontWeight = FontWeight.ExtraBold)
                             Box {
                                 val more = stringResource(R.string.f_more_options, cb.name)
                                 Text(
@@ -156,55 +163,21 @@ fun MealsScreen() {
                     }
                 }
             } else {
-                item(key = "add-macros", contentType = "button") {
-                    Box(Modifier.padding(horizontal = 16.dp)) { SecondaryButton(stringResource(R.string.f_add_by_macros)) { nav.push(Page.MyFood(null)) } }
-                }
-                if (recipes.isEmpty()) {
-                    item(key = "empty-recipes", contentType = "empty") {
-                        EmptyState("🍲", stringResource(R.string.f_no_recipes_title), stringResource(R.string.f_no_recipes_body), stringResource(R.string.f_build_recipe), Modifier.animateItem()) { nav.push(Page.Recipe(null)) }
-                    }
-                }
-                items(recipes, key = { it.id }, contentType = { "recipe" }) { r ->
-                    val per = remember(r) { FoodDb.get(r.id)?.nutrFor(1.0, r.unitName) }
-                    AppCard(onClick = { nav.push(Page.Recipe(r.id)) }, padding = PaddingValues(horizontal = 12.dp, vertical = 10.dp), modifier = Modifier.padding(horizontal = 16.dp).animateItem()) {
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Emoji(r.emoji)
-                            Column(Modifier.weight(1f)) {
-                                Text(r.name, style = t.titleS, fontWeight = FontWeight.Bold)
-                                Text(
-                                    stringResource(R.string.f_recipe_meta, pluralStringResource(R.plurals.f_ingredients, r.ing.size, r.ing.size), r.unitName, r.unitG.roundToInt(), if (r.liquid) "ml" else "g"),
-                                    style = t.caption, color = c.ink2,
-                                )
-                            }
-                            Text(stringResource(R.string.f_kcal_plain, per?.kcal?.roundToInt() ?: 0), style = t.bodyS, fontWeight = FontWeight.ExtraBold)
-                            val del = stringResource(R.string.f_delete_named, r.name)
-                            Text(
-                                "🗑", style = t.body,
-                                modifier = Modifier.defaultMinSize(48.dp, 48.dp).pressScale().clip(CircleShape).semantics { role = Role.Button; contentDescription = del }
-                                    .clickable {
-                                        val before = store.data.value
-                                        store.deleteCustomFood(r.id)
-                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                        feedback?.show(ctx.getString(R.string.f_recipe_deleted, r.name), undo) { store.restoreSnapshot(before) }
-                                    }.padding(12.dp),
-                            )
-                        }
-                    }
-                }
+                // Foods (by calories) and recipes (from ingredients), each with its own add button.
+                myFoodsItems(myRows, focusId)
             }
         }
-        if (if (tab == 0) combos.isNotEmpty() else recipes.isNotEmpty()) {
+        if (seg == 0 && combos.isNotEmpty()) {
             val pillShape = RoundedCornerShape(24.dp)
             Text(
-                stringResource(if (tab == 0) R.string.f_build_combo else R.string.f_build_recipe),
+                stringResource(R.string.f_build_combo),
                 style = U.t.label, fontWeight = FontWeight.Bold, color = U.c.ink,
-                modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(Space.gutter)
+                    .pressScale()
                     .clip(pillShape)
                     .background(U.c.sf2)
                     .border(1.dp, U.c.line, pillShape)
-                    .clickable(role = Role.Button) {
-                        if (tab == 0) nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) else nav.push(Page.Recipe(null))
-                    }
+                    .clickable(role = Role.Button) { nav.push(Page.Plate(filter, nav.date.value, asCombo = true)) }
                     .padding(horizontal = 18.dp, vertical = 13.dp),
             )
         }
@@ -222,10 +195,11 @@ fun MealsScreen() {
                 text = { Column { Text(stringResource(R.string.f_which_meal_q), color = c.ink2, style = t.caption); Spacer(Modifier.height(6.dp)); MealPicker(meal) { mealName = it.name } } },
                 confirmButton = {
                     TextButton({
+                        val m = meal ?: return@TextButton
                         val before = store.data.value
-                        store.useCombo(cb, meal!!, nav.date.value)
+                        store.useCombo(cb, m, nav.date.value)
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                        feedback?.show(ctx.getString(R.string.f_combo_logged, cb.name, meal.label), undo) { store.restoreSnapshot(before) }
+                        feedback?.show(ctx.getString(R.string.f_combo_logged, cb.name, m.label), undo) { store.restoreSnapshot(before) }
                         logComboId = null; nav.home()
                     }, enabled = meal != null, modifier = Modifier.defaultMinSize(minHeight = 48.dp)) { Text(stringResource(R.string.f_log), color = c.accInk, style = t.body, fontWeight = FontWeight.Bold) }
                 },

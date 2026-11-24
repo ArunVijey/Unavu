@@ -53,7 +53,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import app.unavu.R
 import app.unavu.data.NewItem
+import app.unavu.data.fmtInt
 import app.unavu.data.fmtQty
+import androidx.compose.ui.text.style.TextOverflow
 import app.unavu.data.nutrFor
 import app.unavu.data.unitLabel
 import app.unavu.ui.EmojiText
@@ -80,7 +82,7 @@ internal fun ParsedRow(item: NewItem, onClick: () -> Unit) {
     ) {
         Column(Modifier.weight(1f)) {
             Text(
-                "${food.emoji} ${food.name} × ${fmtQty(item.qty)} ${unitLabel(item.unit, item.qty)}",
+                stringResource(R.string.f_qty_line, "${food.emoji} ${food.name}", fmtQty(item.qty), unitLabel(item.unit, item.qty)),
                 style = t.bodyS,
             )
             if (summary.isNotBlank()) Text(summary, style = t.caption, color = U.c.leafInk, fontWeight = FontWeight.SemiBold)
@@ -91,7 +93,7 @@ internal fun ParsedRow(item: NewItem, onClick: () -> Unit) {
                 }
             }
         }
-        Text(stringResource(R.string.f_kcal, kcal), style = t.bodyS, fontWeight = FontWeight.Bold)
+        Text(stringResource(R.string.r7a_kcal, fmtInt(kcal)), style = t.bodyS, fontWeight = FontWeight.Bold, maxLines = 1)
     }
 }
 
@@ -106,7 +108,10 @@ fun AddButton(text: String, enabled: Boolean, success: Boolean = false, onClick:
         if (success) prog.animateTo(1f, motionTween(reduced, Motion.LONG)) else prog.snapTo(0f)
     }
     Box(
-        Modifier.fillMaxWidth().heightIn(min = 52.dp).pressScale().clip(RoundedCornerShape(18.dp)).background(bg)
+        Modifier.fillMaxWidth().heightIn(min = 52.dp)
+            .then(if (U.sketch) Modifier.edge(c.ink.copy(alpha = 0.8f), 18.dp, 1.6.dp, seed = 5) else Modifier)
+            .then(if (enabled && !success) Modifier.pressScale() else Modifier)
+            .clip(RoundedCornerShape(18.dp)).background(bg)
             .clickable(enabled = enabled && !success, role = Role.Button, onClick = onClick).padding(vertical = 16.dp),
         contentAlignment = Alignment.Center,
     ) {
@@ -122,7 +127,12 @@ fun AddButton(text: String, enabled: Boolean, success: Boolean = false, onClick:
             AnimatedContent(
                 text, label = "addLabel",
                 transitionSpec = { if (reduced) EnterTransition.None togetherWith ExitTransition.None else (fadeIn(motionTween(false, Motion.SHORT)) + slideInVertically(motionTween(false, Motion.SHORT)) { it / 3 }) togetherWith fadeOut(motionTween(false, Motion.XSHORT, Motion.Standard)) },
-            ) { s -> Text(s, style = U.t.body, fontWeight = FontWeight.ExtraBold, color = if (enabled) c.onAcc else c.ink2) }
+            ) { s ->
+                Text(
+                    s, style = U.t.body, fontWeight = FontWeight.ExtraBold, color = if (enabled) c.onAcc else c.ink2,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(horizontal = 12.dp),
+                )
+            }
         }
     }
 }

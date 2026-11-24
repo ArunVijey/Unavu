@@ -53,6 +53,7 @@ import app.unavu.data.DATE
 import app.unavu.data.LogEntry
 import app.unavu.data.addWater
 import app.unavu.data.entriesOn
+import app.unavu.data.fmtInt
 import app.unavu.data.fmtQty
 import app.unavu.data.food
 import app.unavu.data.grams
@@ -71,6 +72,7 @@ import app.unavu.ui.StatusBadge
 import app.unavu.ui.TopBar
 import app.unavu.ui.Track
 import app.unavu.ui.nav
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 import java.time.DayOfWeek
 import java.time.LocalDate
@@ -114,14 +116,15 @@ fun LiquidsScreen() {
     val weekL = days.map { (data.water[it.format(DATE)] ?: 0) / 1000.0 }
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(stringResource(R.string.g_liq_title, dayTitle(date)), onBack = { nav.pop() })
-        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        TopBar(stringResource(R.string.g_liq_title, dayLabel(date)), onBack = { nav.pop() })
+        LazyColumn(Modifier.weight(1f), contentPadding = PaddingValues(start = Space.gutter, end = Space.gutter, bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(Space.cardGap)) {
             item(key = "summary", contentType = "card") {
                 val totalL = "%.1f".format((s.water + s.drinksMl) / 1000.0)
                 AppCard {
                     Row(verticalAlignment = Alignment.Bottom) {
                         Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.g_liq_today), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2)
+                            // the day being shown (Today, Yesterday, Sun, 21 Nov), not always "TODAY"
+                            Text(dayLabel(date).uppercase(), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2)
                             Text(stringResource(R.string.g_liters, totalL), style = U.t.display)
                         }
                         Column(horizontalAlignment = Alignment.End) {
@@ -135,7 +138,7 @@ fun LiquidsScreen() {
                     Spacer(Modifier.height(10.dp))
                     Box {
                         SpringTrack(s.counted / goal.toFloat(), c.blue, height = 10.dp)
-                        chip?.let { (id, ml) -> key(id) { FloatChip("+$ml ml", Modifier.align(Alignment.TopEnd)) } }
+                        chip?.let { (id, ml) -> key(id) { FloatChip(stringResource(R.string.g_liq_plus_ml, ml), Modifier.align(Alignment.TopEnd)) } }
                     }
                     Text(
                         stringResource(R.string.g_liq_goal_edit, "%.1f".format(goal / 1000.0)), style = U.t.label, color = c.ink2,
@@ -161,14 +164,14 @@ fun LiquidsScreen() {
             }
             item(key = "water", contentType = "card") {
                 AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
-                    ListRow(stringResource(R.string.g_liq_water), stringResource(R.string.g_liq_plain), trailing = stringResource(R.string.g_liq_ml, s.water))
+                    ListRow(stringResource(R.string.g_liq_water), stringResource(R.string.g_liq_plain), trailing = stringResource(R.string.r7d_ml, fmtInt(s.water)))
                 }
             }
             items(s.rows, key = { "drink-" + it.first.foodId }, contentType = { "drink" }) { r ->
                 val f = r.first.food()
                 if (f != null) {
                     AppCard(Modifier.animateItem(), padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
-                        ListRow("${f.emoji} ${f.name}", stringResource(R.string.g_liq_in_meal, r.first.meal.label, r.kcal), trailing = stringResource(R.string.g_liq_ml, r.ml))
+                        ListRow("${f.emoji} ${f.name}", stringResource(R.string.g_liq_in_meal, r.first.meal.label, r.kcal), trailing = stringResource(R.string.r7d_ml, fmtInt(r.ml)))
                     }
                 }
             }
@@ -208,8 +211,14 @@ fun LiquidsScreen() {
         }
     }
     if (editGoal) {
-        InputDialog(stringResource(R.string.g_liq_goal_dialog), stringResource(R.string.g_liq_litres), "%.1f".format(goal / 1000.0), numeric = true, onDismiss = { editGoal = false }) { v ->
-            v.toDoubleOrNull()?.let { l -> store.update { d -> d.copy(settings = d.settings.copy(waterGoalMl = (l * 1000).roundToInt().coerceIn(500, 6000))) } }
+        val rangeError = stringResource(R.string.r7d_water_range)
+        fun litresOf(v: String) = v.trim().toDoubleOrNull()?.takeIf { it in 0.5..6.0 }
+        InputDialog(
+            stringResource(R.string.g_liq_goal_dialog), stringResource(R.string.g_liq_litres), "%.2f".format(goal / 1000.0).trimEnd('0').trimEnd('.'), numeric = true,
+            validate = { v -> if (litresOf(v) == null) rangeError else null },
+            onDismiss = { editGoal = false },
+        ) { v ->
+            litresOf(v)?.let { l -> store.update { d -> d.copy(settings = d.settings.copy(waterGoalMl = (l * 1000).roundToInt())) } }
         }
     }
 }

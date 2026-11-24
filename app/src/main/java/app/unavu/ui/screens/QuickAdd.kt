@@ -38,9 +38,10 @@ import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import app.unavu.data.entriesOn
+import app.unavu.data.suggestMeal
 import app.unavu.data.today
 import app.unavu.ui.SwitchRow
-import java.time.LocalTime
 import kotlinx.coroutines.delay
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
@@ -96,22 +97,23 @@ import app.unavu.ui.QuickAddRequest
 import app.unavu.ui.SectionLabel
 import app.unavu.ui.nav
 import app.unavu.ui.theme.U
+import app.unavu.data.fmtInt
+import app.unavu.data.fmtQty
+import app.unavu.data.targets
+import app.unavu.ui.AppViewModel
+import app.unavu.ui.QuickAddDraft
+import app.unavu.ui.Status
+import app.unavu.ui.StatusBadge
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.snapshots.SnapshotStateMap
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.lifecycle.viewmodel.compose.viewModel
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.builtins.MapSerializer
+import kotlinx.serialization.builtins.serializer
+import kotlinx.serialization.json.Json
 import kotlin.math.roundToInt
-
-private fun mealByClock(): Meal {
-    val now = LocalTime.now()
-    return mealForMinutes(now.hour * 60 + now.minute)
-}
-
-/** 04:00-11:00 breakfast, -15:30 lunch, -18:30 snacks, -23:00 dinner; late night counts as snacks. */
-internal fun mealForMinutes(mins: Int): Meal = when {
-    mins < 4 * 60 -> Meal.SNACKS
-    mins < 11 * 60 -> Meal.BREAKFAST
-    mins < 15 * 60 + 30 -> Meal.LUNCH
-    mins < 18 * 60 + 30 -> Meal.SNACKS
-    mins < 23 * 60 -> Meal.DINNER
-    else -> Meal.SNACKS
-}
 
 private enum class Mode(val labelRes: Int) { FOOD(R.string.f_mode_food), LIQUID(R.string.f_mode_liquid), WEIGHT(R.string.f_mode_weight) }
 
@@ -132,18 +134,24 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val keyboard = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
     val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val vm: AppViewModel = viewModel()
+    // what was in the sheet when it was last closed without adding (kept for 10 minutes, same mode only)
+    val draft = remember { vm.quickAddDraft(request.mode) }
+    var restored by rememberSaveable { mutableStateOf(draft != null) }
     var modeName by rememberSaveable { mutableStateOf(request.mode) }
     val mode = runCatching { Mode.valueOf(modeName) }.getOrDefault(Mode.FOOD)
-    var text by rememberSaveable { mutableStateOf("") }
-    var mealName by rememberSaveable { mutableStateOf<String?>(request.meal?.name ?: mealByClock().name) }
+    var text by rememberSaveable { mutableStateOf(draft?.text ?: "") }
+    var mealName by rememberSaveable { mutableStateOf<String?>(request.meal?.name ?: draft?.meal ?: suggestMeal(data.entriesOn(date).map { it.meal }.toSet()).name) }
     val meal: Meal? = mealName?.let { n -> Meal.entries.firstOrNull { it.name == n } }
-    var cheat by rememberSaveable { mutableStateOf(false) }
-    var waterMl by rememberSaveable { mutableIntStateOf(0) }
-    var waist by rememberSaveable { mutableStateOf("") }
+    var cheat by rememberSaveable { mutableStateOf(draft?.cheat ?: false) }
+    var waterMl by rememberSaveable { mutableIntStateOf(draft?.waterMl ?: 0) }
+    var waist by rememberSaveable { mutableStateOf(draft?.waist ?: "") }
     var editingKey by rememberSaveable { mutableStateOf<String?>(null) }
-    /** Items the user customised, keyed by "position:food id" so they survive re-parsing. */
-    val overrides = remember { mutableStateMapOf<String, NewItem>() }
-    var comboItems by remember { mutableStateOf<List<NewItem>>(emptyList()) }
+    /** Items the user customised, keyed by "position:food id" so they survive re-parsing, rotation and process death. */
+    val overrides = rememberSaveable(saver = OverridesSaver) {
+        mutableStateMapOf<String, NewItem>().apply { draft?.let { putAll(it.overrides) } }
+    }
+    var comboItems by rememberSaveable(stateSaver = ItemsSaver) { mutableStateOf<List<NewItem>>(draft?.comboItems ?: emptyList()) }
     val focus = remember { FocusRequester() }
     LaunchedEffect(mode) { runCatching { focus.requestFocus() } }
 
@@ -154,13 +162,30 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
     val typed: List<Pair<String, NewItem>> = parsed.items.mapIndexed { i, it -> "$i:${it.food.id}".let { k -> k to (overrides[k] ?: it.toNew()) } }
     val all: List<Pair<String, NewItem>> = typed + comboItems.mapIndexed { i, it -> "combo$i" to it }
     val needsMeal = all.isNotEmpty()
-    // sum the unrounded values, then round once: the same rule Today uses for meal and day totals
-    val totalKcal = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal ?: 0.0 }.roundToInt()
+    // water typed in the text ("1 glass water", "thanni") plus the tiles: it goes to Liquids, never to a meal
+    val waterTotal = waterMl + parsed.waterMl
+    // the total is the sum of the rounded line values shown above it, so the lines always add up to the total
+    val totalKcal = all.sumOf { (_, i) -> FoodDb.get(i.foodId)?.nutrFor(i.qty, i.unit, i.choices)?.kcal?.roundToInt() ?: 0 }
     var done by remember { mutableStateOf(false) }
     // the keyboard leaves the moment Add is pressed, together with the sheet
     val closeAfter: () -> Unit = { keyboard?.hide(); focusManager.clearFocus(); done = true }
+    val saveDraft: () -> Unit = {
+        vm.saveQuickAddDraft(QuickAddDraft(mode.name, text, mealName, cheat, waterMl, waist, overrides.toMap(), comboItems))
+    }
+    val startOver: () -> Unit = {
+        text = ""; overrides.clear(); comboItems = emptyList(); waterMl = 0; waist = ""; cheat = false
+        restored = false; vm.clearQuickAddDraft()
+    }
     var dismissed by remember { mutableStateOf(false) }
-    val dismissOnce: () -> Unit = { if (!dismissed) { dismissed = true; onDismiss() } }
+    // added: nothing to keep; closed with ✕, the scrim, back or a link: keep what was typed for 10 minutes
+    val dismissOnce: () -> Unit = {
+        if (!dismissed) {
+            dismissed = true
+            if (done) vm.clearQuickAddDraft() else saveDraft()
+            onDismiss()
+        }
+    }
+    val leaveTo: (Page) -> Unit = { page -> dismissOnce(); nav.push(page) }
     LaunchedEffect(done) {
         if (done && !dismissed) {
             delay(250) // let the success tick land, then slide the sheet away
@@ -177,7 +202,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
         Column(Modifier.fillMaxWidth().graphicsLayer { transformOrigin = TransformOrigin(0.92f, 1f); scaleX = enterScale; scaleY = enterScale }.padding(horizontal = 16.dp).padding(top = 16.dp).navigationBarsPadding().imePadding().verticalScroll(rememberScrollState())) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 SlidingSegments(Mode.entries, mode, { stringResource(it.labelRes) }) { m ->
-                    modeName = m.name; text = ""; overrides.clear(); comboItems = emptyList()
+                    modeName = m.name; text = ""; overrides.clear(); comboItems = emptyList(); restored = false
                 }
                 Spacer(Modifier.weight(1f))
                 ArrowButton(Arrow.CLOSE, contentDescription = stringResource(R.string.f_close), onClick = dismissOnce)
@@ -193,7 +218,7 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                     )
                 }
                 BasicTextField(
-                    value = text, onValueChange = { text = it },
+                    value = text, onValueChange = { text = it; restored = false },
                     textStyle = t.headline.copy(color = c.ink),
                     cursorBrush = SolidColor(c.acc),
                     keyboardOptions = KeyboardOptions(
@@ -203,13 +228,28 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().focusRequester(focus).semantics { contentDescription = fieldLabel },
                 )
             }
+            if (restored && (text.isNotBlank() || waterMl > 0 || comboItems.isNotEmpty() || waist.isNotBlank())) {
+                // the sheet was closed a moment ago with this in it: say so, and offer a clean start
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(R.string.r7e_draft_restored), style = t.caption, color = c.ink2, modifier = Modifier.weight(1f))
+                    Box(
+                        Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).semantics { role = Role.Button }
+                            .clickable(onClick = startOver).padding(horizontal = 10.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(stringResource(R.string.r7e_draft_start_over), style = t.label, fontWeight = FontWeight.Bold, color = c.accInk)
+                    }
+                }
+            }
 
             when (mode) {
                 Mode.FOOD, Mode.LIQUID -> {
                     // words we couldn't place get suggestions, never a silent guess
                     // don't nag about the word that is still being typed
                     val typing = if (text.isNotEmpty() && !text.last().isWhitespace()) text.trim().split(Regex("\\s+")).last().lowercase() else null
-                    val stillTyping = typing != null && (typing.length < 4 || FoodDb.dishes.any { f -> f.aliases.any { it.startsWith(typing) } })
+                    val stillTyping = typing != null && (
+                        typing.length < 4 || QuickParser.startsKnownWord(typing) || FoodDb.dishes.any { f -> f.aliases.any { it.startsWith(typing) } }
+                    )
                     parsed.unknown.distinct().filterNot { stillTyping && it == typing }.forEach { word ->
                         val sugg = remember(word, mode) { FoodDb.search(word, limit = 3, includeRaw = false).filter { mode == Mode.FOOD || it.liquid } }
                         AppCard(color = c.turS, border = null, padding = PaddingValues(16.dp), modifier = Modifier.padding(bottom = 6.dp)) {
@@ -228,22 +268,24 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                             Text(
                                 stringResource(R.string.f_search_all), style = t.label, fontWeight = FontWeight.Bold, color = c.accInk,
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { role = Role.Button }
-                                    .clickable { onDismiss(); nav.push(Page.Plate(meal, date)) }.padding(top = 12.dp),
+                                    .clickable { leaveTo(Page.Plate(meal, date)) }.padding(top = 12.dp),
                             )
                             Text(
                                 stringResource(R.string.f_add_to_my_foods, word), style = t.label, fontWeight = FontWeight.Bold, color = c.accInk,
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).semantics { role = Role.Button }
-                                    .clickable { onDismiss(); nav.push(Page.MyFood(null, word.replaceFirstChar { it.uppercase() })) }.padding(top = 12.dp),
+                                    .clickable { leaveTo(Page.MyFood(null, word.replaceFirstChar { it.uppercase() })) }.padding(top = 12.dp),
                             )
                         }
                     }
-                    if (all.isNotEmpty()) {
-                        
+                    if (all.isNotEmpty() || parsed.water.isNotEmpty()) {
                         AppCard(padding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) {
                             all.forEachIndexed { n, (key, item) -> key(key) { StaggerIn(n) { ParsedRow(item) { editingKey = key } } } }
-                            Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp)) {
-                                Text(stringResource(R.string.f_total_hint), color = c.ink2, style = t.caption, modifier = Modifier.weight(1f))
-                                Text(stringResource(R.string.f_kcal, kcalShown), style = t.bodyS, fontWeight = FontWeight.Bold)
+                            parsed.water.forEachIndexed { n, w -> key("water$n") { StaggerIn(all.size + n) { WaterRow(w.ml) } } }
+                            if (all.isNotEmpty()) {
+                                Row(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 2.dp)) {
+                                    Text(stringResource(R.string.f_total_hint), color = c.ink2, style = t.caption, modifier = Modifier.weight(1f))
+                                    Text(stringResource(R.string.r7e_kcal, fmtInt(kcalShown)), style = t.bodyS, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
                     }
@@ -265,14 +307,14 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                     if (mode == Mode.LIQUID) {
                         SectionLabel(stringResource(R.string.f_water_title))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            listOf(Triple("🥛", R.string.f_glass, 250), Triple("🍶", R.string.f_tumbler, 150), Triple("🧴", R.string.f_bottle, 500)).forEach { (e, n, ml) ->
-                                LiquidTile(e, stringResource(n), "$ml ml", false, Modifier.weight(1f)) { waterMl += ml }
+                            listOf(Triple("🥛", R.string.f_glass, QuickParser.GLASS_ML), Triple("🍶", R.string.f_tumbler, 150), Triple("🧴", R.string.f_bottle, 500)).forEach { (e, n, ml) ->
+                                LiquidTile(e, stringResource(n), stringResource(R.string.r7e_ml, fmtInt(ml)), false, Modifier.weight(1f)) { waterMl += ml }
                             }
                         }
                         if (waterMl > 0) {
                             val clear = stringResource(R.string.f_water_clear)
                             Text(
-                                stringResource(R.string.f_water_added, waterMl), style = t.body, fontWeight = FontWeight.Bold, color = c.blueInk,
+                                stringResource(R.string.r7e_water_added, fmtInt(waterMl)), style = t.body, fontWeight = FontWeight.Bold, color = c.blueInk,
                                 modifier = Modifier.heightIn(min = 48.dp).padding(top = 8.dp).semantics { role = Role.Button; contentDescription = clear }.clickable { waterMl = 0 },
                             )
                         }
@@ -291,32 +333,40 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                         SwitchRow(stringResource(R.string.f_cheat_meal), cheat) { cheat = it }
                     }
                     Spacer(Modifier.height(12.dp))
-                    val count = all.size + if (waterMl > 0) 1 else 0
+                    val count = all.size + if (waterTotal > 0) 1 else 0
                     val canAdd = count > 0 && (!needsMeal || meal != null)
                     AddButton(
                         text = when {
                             count == 0 -> stringResource(if (mode == Mode.FOOD) R.string.f_btn_type_food else R.string.f_btn_add_drink)
                             needsMeal && meal == null -> stringResource(R.string.f_btn_pick_meal)
-                            mode == Mode.FOOD -> if (all.size == 1) stringResource(R.string.f_btn_add_one, totalKcal) else stringResource(R.string.f_btn_add_to, all.size, totalKcal)
+                            all.isEmpty() -> stringResource(R.string.r7e_btn_add_water, fmtInt(waterTotal))
+                            mode == Mode.FOOD && waterTotal > 0 ->
+                                pluralStringResource(R.plurals.r7e_btn_add_items_water, all.size, all.size, fmtInt(totalKcal), fmtInt(waterTotal))
+                            mode == Mode.FOOD -> pluralStringResource(R.plurals.r7e_btn_add_items, all.size, all.size, fmtInt(totalKcal))
                             count == 1 -> stringResource(R.string.f_btn_add_drink_one)
                             else -> stringResource(R.string.f_btn_add_drinks, count)
                         },
                         enabled = canAdd, success = done,
                     ) {
                         val before = store.data.value
+                        val m = meal
                         val names = all.mapNotNull { FoodDb.get(it.second.foodId)?.name }
-                        if (all.isNotEmpty()) store.logItems(all.map { it.second }, meal!!, date, cheat)
-                        if (waterMl > 0) store.addWater(date, waterMl)
+                        if (all.isNotEmpty() && m != null) store.logItems(all.map { it.second }, m, date, cheat)
+                        if (waterTotal > 0) store.addWater(date, waterTotal)
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                        val msg = if (names.isNotEmpty()) ctx.getString(R.string.f_added_to, names.joinToString(", "), meal!!.label)
-                        else ctx.getString(R.string.f_water_snack, waterMl)
+                        val msg = when {
+                            names.isNotEmpty() && m != null && waterTotal > 0 ->
+                                ctx.getString(R.string.r7e_added_to_with_water, names.joinToString(", "), m.label, fmtInt(waterTotal))
+                            names.isNotEmpty() && m != null -> ctx.getString(R.string.f_added_to, names.joinToString(", "), m.label)
+                            else -> ctx.getString(R.string.r7e_water_snack, fmtInt(waterTotal))
+                        }
                         feedback?.show(msg, ctx.getString(R.string.f_undo)) { store.restoreSnapshot(before) }
                         closeAfter()
                     }
                     Text(
                         stringResource(R.string.f_build_plate), style = t.label, fontWeight = FontWeight.Bold, color = c.accInk, textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).padding(top = 12.dp).semantics { role = Role.Button }
-                            .clickable { onDismiss(); nav.push(Page.Plate(meal, date)) },
+                            .clickable { leaveTo(Page.Plate(meal, date)) },
                     )
                     Text(
                         stringResource(if (mode == Mode.FOOD) R.string.f_tip_food else R.string.f_tip_liquid),
@@ -336,10 +386,20 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
                     NumberField(waist, stringResource(R.string.f_waist_optional), Modifier.width(180.dp)) { waist = it }
                     Spacer(Modifier.height(12.dp))
                     AddButton(stringResource(R.string.f_btn_save_weight), enabled = kg != null && kg in 20.0..300.0, success = done) {
+                        val w = kg ?: return@AddButton
                         val before = store.data.value
-                        store.addWeight(date, kg!!, waist.toDoubleOrNull())
+                        store.addWeight(date, w, waist.replace(",", ".").toDoubleOrNull())
                         haptic.performHapticFeedback(HapticFeedbackType.Confirm)
-                        feedback?.show(ctx.getString(R.string.f_weight_saved, text.trim()), ctx.getString(R.string.f_undo)) { store.restoreSnapshot(before) }
+                        // a new weight can move the daily target (Mifflin-St Jeor): never silently. Past days keep
+                        // their old target (target history); Undo puts back both the weigh-in and the target.
+                        val oldTarget = before.targets()?.kcal
+                        val newTarget = store.data.value.targets()?.kcal
+                        val msg = if (oldTarget != null && newTarget != null && newTarget != oldTarget) {
+                            ctx.getString(R.string.r7e_weight_saved_target, fmtQty(w), fmtInt(oldTarget), fmtInt(newTarget))
+                        } else {
+                            ctx.getString(R.string.f_weight_saved, fmtQty(w))
+                        }
+                        feedback?.show(msg, ctx.getString(R.string.f_undo)) { store.restoreSnapshot(before) }
                         closeAfter()
                     }
                     Spacer(Modifier.height(16.dp))
@@ -367,3 +427,38 @@ fun QuickAddSheet(request: QuickAddRequest, onDismiss: () -> Unit) {
         }
     }
 }
+
+/** A "💧 Water 250 ml → Liquids" row for water typed in the text: it is logged to Liquids, not to the meal. */
+@Composable
+private fun WaterRow(ml: Int) {
+    val t = U.t
+    val amount = stringResource(R.string.r7e_ml, fmtInt(ml))
+    val spoken = stringResource(R.string.r7e_water_row_desc, fmtInt(ml))
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).clearAndSetSemantics { contentDescription = spoken }.padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(stringResource(R.string.r7e_water_row), style = t.bodyS)
+            Row(Modifier.padding(top = 3.dp)) { StatusBadge(stringResource(R.string.f_to_liquids), Status.INFO) }
+        }
+        Text(amount, style = t.bodyS, fontWeight = FontWeight.Bold, maxLines = 1)
+    }
+}
+
+private val itemListSerializer = ListSerializer(NewItem.serializer())
+private val itemMapSerializer = MapSerializer(String.serializer(), NewItem.serializer())
+
+/** Keeps a list of unsaved items across rotation and process death (as JSON). */
+private val ItemsSaver = Saver<List<NewItem>, String>(
+    save = { Json.encodeToString(itemListSerializer, it) },
+    restore = { runCatching { Json.decodeFromString(itemListSerializer, it) }.getOrNull() },
+)
+
+/** Keeps the customised quick-add items (keyed "position:food id") across rotation and process death. */
+private val OverridesSaver = Saver<SnapshotStateMap<String, NewItem>, String>(
+    save = { Json.encodeToString(itemMapSerializer, it.toMap()) },
+    restore = { s ->
+        mutableStateMapOf<String, NewItem>().apply { runCatching { Json.decodeFromString(itemMapSerializer, s) }.getOrNull()?.let { putAll(it) } }
+    },
+)

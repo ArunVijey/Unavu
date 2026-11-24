@@ -33,6 +33,7 @@ import app.unavu.ui.QuickAddRequest
 import app.unavu.ui.SecondaryButton
 import app.unavu.ui.TopBar
 import app.unavu.ui.nav
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 import kotlin.math.roundToInt
 
@@ -50,7 +51,7 @@ fun PortionsScreen() {
     val list = remember(data.portions) { data.portions.entries.mapNotNull { (id, p) -> FoodDb.get(id)?.let { it to p } }.sortedBy { it.first.name } }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_my_portions), onBack = { nav.pop() })
-        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(horizontal = Space.gutter), verticalArrangement = Arrangement.spacedBy(Space.cardGap)) {
             AppCard(color = c.leafS, border = null) {
                 Text(stringResource(R.string.i_portions_hint), color = c.leafInk, style = U.t.bodyS.iBold())
             }

@@ -59,6 +59,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.error
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
 import app.unavu.R
 import app.unavu.ui.theme.motionTween
 import androidx.compose.runtime.getValue
@@ -82,6 +84,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.unavu.data.Meal
+import app.unavu.data.fmtInt
 import app.unavu.data.fmtQty
 import app.unavu.ui.theme.U
 import androidx.compose.animation.core.LinearEasing
@@ -126,17 +129,26 @@ fun Stepper(
 ) {
     val haptic = LocalHapticFeedback.current
     val reduced = LocalReducedMotion.current
-    val dec = if (itemName != null) stringResource(R.string.f_decrease, itemName) else stringResource(R.string.d_decrease)
+    val aboveMin = value - step >= min - 1e-9
+    // at the minimum, "−" removes the item when the caller allows it: say so instead of "Decrease"
+    val dec = when {
+        itemName != null && !aboveMin && onBelowMin != null -> stringResource(R.string.r7a_remove_item, itemName)
+        itemName != null -> stringResource(R.string.f_decrease, itemName)
+        else -> stringResource(R.string.d_decrease)
+    }
     val inc = if (itemName != null) stringResource(R.string.f_increase, itemName) else stringResource(R.string.d_increase)
-    val canDec = value - step >= min - 1e-9 || onBelowMin != null
+    val canDec = aboveMin || onBelowMin != null
+    val valueText = fmtQty(value)
     Row(modifier, verticalAlignment = Alignment.CenterVertically) {
         StepCircle("−", dec, canDec) {
             haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-            if (value - step >= min - 1e-9) onChange(value - step) else onBelowMin?.invoke()
+            if (aboveMin) onChange(value - step) else onBelowMin?.invoke()
         }
+        // one semantics node for the slot (the outgoing value is still drawn mid-slide), as a polite live region
+        // so TalkBack reads the new amount after each tap
         AnimatedContent(
             value, label = "stepperValue", contentAlignment = Alignment.Center,
-            modifier = Modifier.width(slotWidth).clearAndSetSemantics { },
+            modifier = Modifier.width(slotWidth).clearAndSetSemantics { contentDescription = valueText; liveRegion = LiveRegionMode.Polite },
             transitionSpec = {
                 if (reduced) EnterTransition.None togetherWith ExitTransition.None
                 else {
@@ -158,7 +170,10 @@ private fun StepCircle(glyph: String, desc: String, enabled: Boolean, onClick: (
             .semantics { contentDescription = desc },
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.size(34.dp).clip(CircleShape).border(1.5.dp, c.line, CircleShape), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(34.dp).edge(if (enabled) c.line else c.line.copy(alpha = 0.5f), 17.dp, 1.5.dp, seed = glyph.hashCode()).clip(CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
             Text(glyph, style = U.t.title, color = if (enabled) c.ink else c.ink2.copy(alpha = 0.45f))
         }
     }
@@ -219,13 +234,22 @@ fun TextField(value: String, label: String, modifier: Modifier = Modifier, error
 }
 
 @Composable
-fun ConfirmDialog(title: String, text: String, confirm: String, destructive: Boolean = false, onDismiss: () -> Unit, onConfirm: () -> Unit) {
+/** Two-button confirmation. [dismissLabel] replaces "Cancel" (e.g. "Keep editing" on a discard prompt). */
+fun ConfirmDialog(
+    title: String,
+    text: String,
+    confirm: String,
+    destructive: Boolean = false,
+    onDismiss: () -> Unit,
+    dismissLabel: String? = null,
+    onConfirm: () -> Unit,
+) {
     val c = U.c
     AlertDialog(
         onDismissRequest = onDismiss, containerColor = c.sf,
         title = { Text(title, style = U.t.title) }, text = { Text(text, style = U.t.body, color = c.ink2) },
         confirmButton = { TextButton({ onConfirm(); onDismiss() }) { Text(confirm, color = if (destructive) c.chiInk else c.accInk, style = U.t.label, fontWeight = FontWeight.Bold) } },
-        dismissButton = { TextButton(onDismiss) { Text(stringResource(R.string.d_cancel), color = c.ink2, style = U.t.label) } },
+        dismissButton = { TextButton(onDismiss) { Text(dismissLabel ?: stringResource(R.string.d_cancel), color = c.ink2, style = U.t.label) } },
     )
 }
 
@@ -304,9 +328,10 @@ fun BarChart(
     if (sel >= 0) shownSel = sel
     val measurer = rememberTextMeasurer()
     val chipStyle = U.t.caption.copy(fontWeight = FontWeight.Bold, color = c.bg)
+    val targetPart = target?.let { stringResource(R.string.r7a_chart_target, fmtInt(it)) }
     val summary = contentDescription ?: stringResource(
         R.string.d_bar_chart,
-        values.mapIndexed { i, v -> "${labels.getOrElse(i) { "" }.replace("\n", " ")} ${v.toInt()}" }.joinToString(", ") + (target?.let { ", target ${it.toInt()}" } ?: ""),
+        (values.mapIndexed { i, v -> "${labels.getOrElse(i) { "" }.replace("\n", " ")} ${fmtInt(v)}" } + listOfNotNull(targetPart)).joinToString(", "),
     )
     Column(modifier.fillMaxWidth().semantics(mergeDescendants = true) { this.contentDescription = summary }) {
         Box(Modifier.fillMaxWidth().height(height.dp)) {
@@ -335,7 +360,7 @@ fun BarChart(
                 }
                 if (chipA > 0.01f && shownSel in values.indices) {
                     val v = values[shownSel]
-                    val lay = measurer.measure(v.toInt().toString(), chipStyle)
+                    val lay = measurer.measure(fmtInt(v), chipStyle)
                     val cw = lay.size.width + 14.dp.toPx(); val ch = lay.size.height + 6.dp.toPx()
                     val barTop = size.height - ((v / maxV * size.height).toFloat().coerceAtLeast(4f))
                     val cx = (slot * shownSel + slot / 2).coerceIn(cw / 2, size.width - cw / 2)

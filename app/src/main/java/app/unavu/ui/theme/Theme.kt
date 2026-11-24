@@ -3,7 +3,10 @@ package app.unavu.ui.theme
 import androidx.compose.ui.unit.dp
 
 import androidx.compose.ui.text.font.FontSynthesis
-import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.res.Configuration
+import android.view.Window
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
@@ -15,13 +18,14 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.activity.SystemBarStyle
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.ExperimentalTextApi
 import androidx.compose.ui.text.PlatformTextStyle
@@ -200,18 +204,69 @@ private fun colorScheme(c: AppColors) =
         surfaceContainer = c.sf, surfaceContainerHigh = c.sf2, surfaceContainerHighest = c.sf2,
     )
 
+/** Whether the app draws dark for these settings ([ThemeMode.SYSTEM] follows the phone). */
+fun Settings.isDark(systemDark: Boolean): Boolean = when (theme) {
+    ThemeMode.SYSTEM -> systemDark
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
+}
+
+/** True when the phone itself is in dark mode (what [ThemeMode.SYSTEM] follows). */
+fun Context.systemInDarkMode(): Boolean =
+    (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) == Configuration.UI_MODE_NIGHT_YES
+
+/**
+ * Edge-to-edge with transparent bars whose icons follow the APP theme, never the phone's: dark icons on the light
+ * palette, light icons on the dark/black ones. `enableEdgeToEdge()` with defaults, the XML night theme and the
+ * splash-screen library all pick the phone's mode, so every one of those paths calls this afterwards.
+ * Transparent on every API level, so the bottom bar's own surface shows behind the 3-button nav bar (as on API 35+).
+ */
+fun ComponentActivity.applySystemBars(dark: Boolean) {
+    val clear = android.graphics.Color.TRANSPARENT
+    enableEdgeToEdge(
+        statusBarStyle = if (dark) SystemBarStyle.dark(clear) else SystemBarStyle.light(clear, clear),
+        navigationBarStyle = if (dark) SystemBarStyle.dark(clear) else SystemBarStyle.light(clear, clear),
+    )
+    syncBarIcons(window, dark)
+}
+
+/** The dark/light the app draws with for saved [settings] (null while the store is still loading: the phone's). */
+fun Context.appIsDark(settings: Settings?): Boolean {
+    val systemDark = systemInDarkMode()
+    return settings?.isDark(systemDark) ?: systemDark
+}
+
+/** [applySystemBars] for saved settings. */
+fun ComponentActivity.applySystemBars(settings: Settings?) = applySystemBars(appIsDark(settings))
+
+/** Re-checks only the bar icon appearance for saved settings (cheap: no window relayout). */
+fun ComponentActivity.syncSystemBarIcons(settings: Settings?) = syncBarIcons(window, appIsDark(settings))
+
+/** Only the icon appearance (cheap and idempotent): writes nothing when it already matches. */
+private fun syncBarIcons(window: Window, dark: Boolean) {
+    val ctl = WindowCompat.getInsetsController(window, window.decorView)
+    if (ctl.isAppearanceLightStatusBars == dark) ctl.isAppearanceLightStatusBars = !dark
+    if (ctl.isAppearanceLightNavigationBars == dark) ctl.isAppearanceLightNavigationBars = !dark
+}
+
+private tailrec fun Context.findActivity(): ComponentActivity? = when (this) {
+    is ComponentActivity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
+}
+
 @Composable
 fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
-    val dark = when (settings.theme) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK -> true
+    val dark = settings.isDark(isSystemInDarkTheme())
+    // palettes, type and the M3 scheme are rebuilt only when an appearance setting changes (not on every data write):
+    // a fresh ColorScheme object would otherwise invalidate the whole tree under MaterialTheme
+    val c = remember(dark, settings.amoled, settings.accent) {
+        when {
+            !dark -> LightColors
+            settings.amoled -> AmoledColors
+            else -> DarkColors
+        }.withAccent(Color(settings.accent ?: DEFAULT_ACCENT))
     }
-    val c = when {
-        !dark -> LightColors
-        settings.amoled -> AmoledColors
-        else -> DarkColors
-    }.withAccent(Color(settings.accent ?: DEFAULT_ACCENT))
     val family = when {
         settings.sketch || settings.font == AppFont.EXCALIFONT -> ExcalifontFamily
         settings.font == AppFont.INTER -> InterFamily
@@ -219,38 +274,35 @@ fun AppTheme(settings: Settings, content: @Composable () -> Unit) {
     }
     val exf = family == ExcalifontFamily
     // Excalifont is a thin pen: heavier (Android's fake-bold), +1sp per role, and muted text gets more contrast.
-    val cc = if (exf) c.copy(ink2 = lerp(c.ink2, c.ink, 0.35f)) else c
+    val cc = remember(c, exf) { if (exf) c.copy(ink2 = lerp(c.ink2, c.ink, 0.35f)) else c }
 
     val view = LocalView.current
     if (!view.isInEditMode) {
-        // enableEdgeToEdge owns the bar icon style; re-apply it from the APP theme (not the system one)
-        val navArgb = c.sf.toArgb()
-        DisposableEffect(dark, navArgb) {
-            val activity = view.context as? ComponentActivity
-            // the splash-screen library re-applies the XML bar style when it exits, so apply ours again after that
-            val apply = { activity?.enableEdgeToEdge(
-                statusBarStyle = if (dark) SystemBarStyle.dark(android.graphics.Color.TRANSPARENT)
-                else SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
-                navigationBarStyle = if (dark) SystemBarStyle.dark(navArgb)
-                else SystemBarStyle.light(navArgb, navArgb),
-            ) }
-            apply()
-            val again = Runnable { apply() }
-            view.postDelayed(again, 800)
-            onDispose { view.removeCallbacks(again) }
+        val activity = remember(view) { view.context.findActivity() }
+        // transparent bars + icon style whenever the effective theme changes (Appearance, or the phone's mode on SYSTEM)
+        DisposableEffect(activity, dark) {
+            activity?.applySystemBars(dark)
+            onDispose { }
         }
+        // and the icon style re-checked after every composition of the theme (recreation included). The splash exit and
+        // window-focus changes re-apply it from MainActivity, so no XML or system default can stick: no timers, no races
+        SideEffect { activity?.let { syncBarIcons(it.window, dark) } }
     }
 
-    val base = TextStyle(
-        fontFamily = family, fontSize = 14.sp, color = c.ink, fontFeatureSettings = "tnum", fontSynthesis = FontSynthesis.All,
-        fontWeight = if (exf) FontWeight.SemiBold else null,
-        // keeps emoji (taller than the Latin font) from being clipped / squished
-        platformStyle = PlatformTextStyle(includeFontPadding = true),
-    )
-    val type = appType(base, exf)
+    val base = remember(family, exf, c.ink) {
+        TextStyle(
+            fontFamily = family, fontSize = 14.sp, color = c.ink, fontFeatureSettings = "tnum", fontSynthesis = FontSynthesis.All,
+            fontWeight = if (exf) FontWeight.SemiBold else null,
+            // keeps emoji (taller than the Latin font) from being clipped / squished
+            platformStyle = PlatformTextStyle(includeFontPadding = true),
+        )
+    }
+    val type = remember(base, exf) { appType(base, exf) }
+    val scheme = remember(c) { colorScheme(c) }
+    val typography = remember(type) { type.toTypography() }
     val reduced = rememberReducedMotion()
 
-    MaterialTheme(colorScheme = colorScheme(c), typography = type.toTypography()) {
+    MaterialTheme(colorScheme = scheme, typography = typography) {
         CompositionLocalProvider(
             LocalColors provides cc,
             LocalSketch provides settings.sketch,

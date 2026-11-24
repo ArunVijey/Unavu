@@ -13,7 +13,6 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
-import kotlin.math.roundToInt
 
 /** Monthly PDF report: averages (cheat days excluded), weight change, top foods, nutrient gaps. */
 object Report {
@@ -24,6 +23,8 @@ object Report {
         val cheatDays: Int,
         val avg: Nutr,
         val target: Targets?,
+        /** The kcal target in force at the end of the month (or today, for the current month). */
+        val targetKcal: Int?,
         val weightStart: Double?,
         val weightEnd: Double?,
         val topFoods: List<Pair<String, Double>>,
@@ -38,13 +39,16 @@ object Report {
         val totals = normal.map { d.entriesOn(it).filterNot { e -> e.cheat }.total() }
         val avg = if (totals.isEmpty()) Nutr() else totals.fold(Nutr()) { a, b -> a + b } * (1.0 / totals.size)
         val t = d.targets()
+        val monthEnd = minOf(ym.atEndOfMonth().toString(), today())
         val w = d.weights.filter { it.date.startsWith(prefix) }.sortedBy { it.date }
         val top = d.entries.filter { it.date.startsWith(prefix) }.groupBy { it.foodId }
             .map { (id, es) -> (FoodDb.get(id)?.name ?: id) to es.sumOf { it.nutr().kcal } }
             .sortedByDescending { it.second }.take(8)
-        val over = t?.let { tt -> normal.count { day -> d.entriesOn(day).total().kcal > tt.kcal * 1.05 } } ?: 0
-        val under = t?.let { tt -> normal.count { day -> d.entriesOn(day).total().kcal < tt.kcal * 0.85 } } ?: 0
-        return MonthStats(ym, days.size, days.count { d.isCheatDay(it) }, avg, t, w.firstOrNull()?.kg, w.lastOrNull()?.kg, top, over, under)
+        // each day is judged against the target that applied on that day
+        val judged = normal.mapNotNull { day -> d.targetKcalOn(day)?.let { target -> d.entriesOn(day).total().kcal / target } }
+        val over = judged.count { it > 1.05 }
+        val under = judged.count { it < 0.85 }
+        return MonthStats(ym, days.size, days.count { d.isCheatDay(it) }, avg, t, d.targetKcalOn(monthEnd), w.firstOrNull()?.kg, w.lastOrNull()?.kg, top, over, under)
     }
 
     fun pdf(d: AppData, ym: YearMonth): ByteArray {
@@ -67,7 +71,7 @@ object Report {
         val t = s.target
         listOf(
             "Days logged" to "${s.loggedDays}  (cheat days: ${s.cheatDays})",
-            "Average calories" to "${s.avg.kcal.roundToInt()} kcal / day" + (t?.let { " · target ${it.kcal}" } ?: ""),
+            "Average calories" to "${fmtInt(s.avg.kcal)} kcal / day" + (s.targetKcal?.let { " · target ${fmtInt(it)}" } ?: ""),
             "Days over / under target" to "${s.daysOver} over · ${s.daysUnder} well under",
             "Weight" to if (s.weightStart != null && s.weightEnd != null) "%.1f → %.1f kg (%+.1f kg)".format(s.weightStart, s.weightEnd, s.weightEnd - s.weightStart) else "Not enough weigh-ins",
         ).forEach { (k, v) -> c.drawText(k, 40f, y, muted); c.drawText(v, 220f, y, p); y += 18 }
@@ -92,7 +96,7 @@ object Report {
         }
         y += 14
         c.drawText("Top foods by calories", 40f, y, h); y += 18
-        s.topFoods.forEach { (name, kcal) -> c.drawText(name, 40f, y, p); c.drawText("${kcal.roundToInt()} kcal", 440f, y, muted); y += 16 }
+        s.topFoods.forEach { (name, kcal) -> c.drawText(name, 40f, y, p); c.drawText("${fmtInt(kcal)} kcal", 440f, y, muted); y += 16 }
         doc.finishPage(page)
         val out = ByteArrayOutputStream()
         doc.writeTo(out); doc.close()

@@ -56,9 +56,83 @@ fun AppData.targets(): Targets? = profile?.let { targetsFor(it, smart) }
 
 /**
  * The daily kcal target that applied on [date] (ISO). Past days keep the target they were judged against, so a later
- * weigh-in or goal change doesn't recolour history. SKELETON: returns today's target until per-day history exists.
+ * weigh-in or goal change doesn't recolour history.
+ *
+ * - No history yet (older data, or the target never changed): the current target, as before.
+ * - On or after the newest change: the current target (today is always judged against the live number).
+ * - Between changes: the newest change made on or before [date].
+ * - Before the first recorded change: the first known target (the one in force when tracking started).
+ *
+ * Null only when there is no profile yet.
  */
-fun AppData.targetKcalOn(date: String): Int? = targets()?.kcal
+fun AppData.targetKcalOn(date: String): Int? {
+    val current = targets()?.kcal ?: return null
+    val days = targetDays
+    if (days.isEmpty() || date >= days.last()) return current
+    // index of the newest change on or before the date; before the first change, the first entry is used
+    val i = days.binarySearch(date).let { if (it >= 0) it else -it - 2 }.coerceAtLeast(0)
+    return targetHistory[days[i]] ?: current
+}
+
+/**
+ * Records a change of the daily kcal target (called by [Store.update] for every write).
+ *
+ * [beforeKcal] is the target before the change (null when unknown, e.g. a restore). When the history is still empty,
+ * the old target is first stored as a baseline dated at the earliest logged day, so every day before [on] keeps it.
+ * Entries that repeat the previous value are dropped, so undoing a change on the same day leaves no trace.
+ */
+fun AppData.withTargetRecorded(beforeKcal: Int?, on: String = today()): AppData {
+    val now = targets()?.kcal ?: return this
+    val hist = targetHistory
+    if (hist.isEmpty()) {
+        if (beforeKcal == null || beforeKcal == now) return this
+        val dayBefore = java.time.LocalDate.parse(on).minusDays(1).toString()
+        val firstData = listOfNotNull(entries.minOfOrNull { it.date }, weights.minOfOrNull { it.date }, water.keys.minOrNull()).minOrNull()
+        val baseline = if (firstData != null && firstData < dayBefore) firstData else dayBefore
+        return copy(targetHistory = mapOf(baseline to beforeKcal, on to now))
+    }
+    val latest = targetDays.last()
+    if (hist[latest] == now) return this
+    // a change dated earlier than the newest record (clock moved back) still lands on the newest record's day
+    val key = if (on >= latest) on else latest
+    val next = (hist + (key to now)).toSortedMap()
+    // drop entries that repeat the value before them (e.g. a change undone later the same day)
+    var prev: Int? = null
+    val pruned = LinkedHashMap<String, Int>()
+    for ((k, v) in next) { if (v != prev) pruned[k] = v; prev = v }
+    return copy(targetHistory = pruned)
+}
+
+/**
+ * The one place that knows the meal time windows (minutes after midnight):
+ * 04:00-11:00 breakfast, -15:30 lunch, -18:30 snacks, -23:00 dinner; late night counts as snacks.
+ */
+fun mealForMinutes(mins: Int): Meal = when {
+    mins < 4 * 60 -> Meal.SNACKS
+    mins < 11 * 60 -> Meal.BREAKFAST
+    mins < 15 * 60 + 30 -> Meal.LUNCH
+    mins < 18 * 60 + 30 -> Meal.SNACKS
+    mins < 23 * 60 -> Meal.DINNER
+    else -> Meal.SNACKS
+}
+
+fun nowMinutes(): Int = LocalTime.now().let { it.hour * 60 + it.minute }
+
+/**
+ * The meal to pre-select for a new log: the one the clock says, or, when that meal is already in [logged], the next
+ * meal (in day order, wrapping round) that isn't. All four logged: the clock's meal. Only a suggestion, never filed
+ * automatically. Callers pass the meals logged on the day being logged to, e.g. `data.entriesOn(date).map { it.meal }.toSet()`.
+ */
+fun suggestMeal(logged: Set<Meal>, minutes: Int = nowMinutes()): Meal {
+    val clock = mealForMinutes(minutes)
+    if (clock !in logged) return clock
+    val all = Meal.entries
+    for (step in 1 until all.size) {
+        val m = all[(clock.ordinal + step) % all.size]
+        if (m !in logged) return m
+    }
+    return clock
+}
 
 /** One meal's share of the day's kcal target: the single rounding rule used by every screen. */
 fun mealShare(targetKcal: Int, split: List<Double>, meal: Meal): Int =

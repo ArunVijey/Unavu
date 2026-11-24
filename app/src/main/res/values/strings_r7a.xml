@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Shared amounts (agent A, round 7) -->
+    <string name="r7a_kcal">%1$s kcal</string>
+    <string name="r7a_grams">%1$s g</string>
+    <string name="r7a_percent">%1$d%%</string>
+    <string name="r7a_fibre">Fibre</string>
+    <string name="r7a_macro_desc">%1$s %2$s g</string>
+    <string name="r7a_approx_amount">≈ %1$s %2$s</string>
+    <string name="r7a_remove_item">Remove %1$s</string>
+    <string name="r7a_discard">Discard</string>
+    <string name="r7a_keep_editing">Keep editing</string>
+
+    <!-- Food detail -->
+    <string name="r7a_food_details">Food details</string>
+    <string name="r7a_unit_per_100">100 %1$s</string>
+    <string name="r7a_unit_one">1 %1$s · %2$s %3$s</string>
+    <string name="r7a_customise_chip">Customise…</string>
+    <string name="r7a_per_100">Per 100 %1$s: %2$s kcal · P %3$s g · C %4$s g · F %5$s g · fibre %6$s g</string>
+    <string name="r7a_portion_label">%1$s ≈ %2$s %3$s</string>
+    <string name="r7a_nutrients_title">Nutrients</string>
+    <string name="r7a_nutrients_hint">How much of your daily target this portion gives</string>
+    <string name="r7a_whats_in_title">What\'s in this portion</string>
+    <string name="r7a_source_my_food">Your own values (My foods).</string>
+    <string name="r7a_source_recipe">Your recipe.</string>
+    <string name="r7a_source_ifct">Calculated from IFCT 2017 (ICMR-NIN) ingredient values; batch and cooked weight are typical home amounts.</string>
+    <string name="r7a_add_to_title">Add to</string>
+    <string name="r7a_add_to_meal">Add to %1$s</string>
+    <string name="r7a_donut_desc">%1$s kcal: protein %2$s g, carbs %3$s g, fat %4$s g</string>
+
+    <!-- Plate builder -->
+    <string name="r7a_plate_title">Build a plate</string>
+    <string name="r7a_combo_new">New combo</string>
+    <string name="r7a_combo_edit">Edit combo</string>
+    <string name="r7a_search_hint">Search any food: kuzhambu, முட்டை, pizza…</string>
+    <string name="r7a_results_title">Results</string>
+    <string name="r7a_results_hint">Tap to add · hold for details</string>
+    <string name="r7a_no_match_title">No match for “%1$s”</string>
+    <string name="r7a_no_match_body">Try another spelling, or save it as your own food.</string>
+    <string name="r7a_add_as_new_food">＋ Add as a new food</string>
+    <string name="r7a_kcal_per_unit">%1$s kcal / %2$s</string>
+    <string name="r7a_tile_kcal_per_unit">%1$s/%2$s</string>
+    <string name="r7a_tile_kcal_desc">%1$s kcal per %2$s</string>
+    <string name="r7a_quick_picks">Quick picks</string>
+    <string name="r7a_quick_picks_hint">Tap to add · tap again for more · hold to customise</string>
+    <string name="r7a_goes_well">Goes well with</string>
+    <string name="r7a_on_plate">On the plate</string>
+    <string name="r7a_on_plate_hint">Tap an item to customise it</string>
+    <string name="r7a_plate_empty_hint">Nothing yet. Tap a food above to add it.</string>
+    <string name="r7a_qty_kcal">%1$s %2$s · %3$s kcal</string>
+    <string name="r7a_plate_total">Plate total</string>
+    <string name="r7a_save_combo">Save combo</string>
+    <string name="r7a_pick_a_meal">Pick a meal</string>
+    <string name="r7a_log_meal">Log %1$s</string>
+    <string name="r7a_add_to_plate">Add to plate</string>
+    <string name="r7a_rename_combo">Rename combo</string>
+    <string name="r7a_save_as_combo">Save as combo</string>
+    <string name="r7a_combo_name_label">Name, e.g. My usual lunch</string>
+    <string name="r7a_combo_default_name">My usual %1$s</string>
+    <string name="r7a_combo_saved">Saved combo “%1$s”</string>
+    <string name="r7a_discard_plate_title">Discard this plate?</string>
+    <plurals name="r7a_discard_plate_body">
+        <item quantity="one">The %d item on it hasn\'t been logged yet.</item>
+        <item quantity="other">The %d items on it haven\'t been logged yet.</item>
+    </plurals>
+    <string name="r7a_discard_combo_title">Discard changes?</string>
+    <string name="r7a_discard_combo_body">Your changes to this combo haven\'t been saved.</string>
+
+    <!-- Customise sheet -->
+    <string name="r7a_unit_chip">%1$s · %2$s %3$s</string>
+    <string name="r7a_customise_macros">P %1$s g · C %2$s g · F %3$s g · Fibre %4$s g</string>
+    <string name="r7a_save_with_qty">%1$s · %2$s %3$s</string>
+
+    <!-- Charts -->
+    <string name="r7a_chart_target">target %1$s</string>
+</resources>

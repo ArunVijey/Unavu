@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.io.FileOutputStream
@@ -52,7 +53,14 @@ class Store internal constructor(private val file: File) {
 
     fun newId(): Long = synchronized(this) { nextId++ }
 
-    fun update(change: (AppData) -> AppData) {
+    /**
+     * Apply a change and save it. A change that moves the daily kcal target (profile, goal, weigh-in, smart target)
+     * is also written to [AppData.targetHistory], so past days keep the target that applied on them.
+     */
+    fun update(change: (AppData) -> AppData) = write { old -> change(old).withTargetRecorded(old.targets()?.kcal) }
+
+    /** Swap in the changed data, refresh custom foods and queue a save. */
+    private fun write(change: (AppData) -> AppData) {
         _data.update(change)
         FoodDb.setCustom(_data.value.customFoods)
         saveRequests.trySend(Unit)
@@ -61,7 +69,7 @@ class Store internal constructor(private val file: File) {
     /** Replace everything (restore from backup). */
     fun replaceAll(d: AppData) {
         val m = migrate(d)
-        update { m }
+        write { m.withTargetRecorded(beforeKcal = null) }
         synchronized(this) { nextId = nextIdFor(m) }
     }
 
@@ -69,7 +77,8 @@ class Store internal constructor(private val file: File) {
 
     /** Undo: put back an earlier snapshot (refreshes custom foods and the id counter). */
     fun restoreSnapshot(snapshot: AppData) {
-        update { snapshot }
+        // the snapshot's own target history comes back with it (an undone target change leaves no record)
+        write { snapshot.withTargetRecorded(beforeKcal = null) }
         synchronized(this) { nextId = maxOf(nextId, nextIdFor(snapshot)) }
     }
 
@@ -175,6 +184,8 @@ data class LoadIssue(val keptCopyPath: String)
 
 // ---------- common actions ----------
 
+/** One item about to be logged (quick add, plate, combo). Serializable so screens can keep unsaved items across rotation and process death. */
+@Serializable
 data class NewItem(val foodId: String, val qty: Double, val unit: String, val choices: Choices = emptyMap())
 
 fun QuickParser.Item.toNew() = NewItem(food.id, qty, unit, choices)
@@ -183,7 +194,8 @@ fun NewItem.toCombo() = ComboItem(foodId, qty, unit, choices)
 
 fun Store.logItems(items: List<NewItem>, meal: Meal, date: String, cheat: Boolean) = update { d ->
     val time = nowTime()
-    val newEntries = items.map { LogEntry(newId(), date, meal, it.foodId, it.qty, it.unit, time, cheat, it.choices) }
+    val made = today()
+    val newEntries = items.map { LogEntry(newId(), date, meal, it.foodId, it.qty, it.unit, time, cheat, it.choices, made) }
     d.copy(
         entries = d.entries + newEntries,
         portions = d.portions + items.associate { it.foodId to Portion(it.qty, it.unit, it.choices) },
@@ -216,13 +228,15 @@ fun Store.deleteMeal(date: String, meal: Meal) = update { d ->
 
 fun Store.copyMeal(fromDate: String, from: Meal, toDate: String, to: Meal) = update { d ->
     val time = nowTime()
-    val copies = d.entries.filter { it.date == fromDate && it.meal == from }.map { it.copy(id = newId(), date = toDate, meal = to, time = time, cheat = false) }
+    val made = today()
+    val copies = d.entries.filter { it.date == fromDate && it.meal == from }.map { it.copy(id = newId(), date = toDate, meal = to, time = time, cheat = false, loggedOn = made) }
     d.copy(entries = d.entries + copies)
 }
 
 fun Store.copyDay(fromDate: String, toDate: String) = update { d ->
     val time = nowTime()
-    val copies = d.entries.filter { it.date == fromDate }.map { it.copy(id = newId(), date = toDate, time = time) }
+    val made = today()
+    val copies = d.entries.filter { it.date == fromDate }.map { it.copy(id = newId(), date = toDate, time = time, loggedOn = made) }
     d.copy(entries = d.entries + copies)
 }
 
@@ -249,8 +263,9 @@ fun Store.deleteCombo(id: String) = update { d -> d.copy(combos = d.combos.filte
 
 fun Store.useCombo(c: Combo, meal: Meal, date: String) = update { d ->
     val time = nowTime()
+    val made = today()
     val items = c.items.map { it.toNew() }
-    val newEntries = items.map { LogEntry(newId(), date, meal, it.foodId, it.qty, it.unit, time, false, it.choices) }
+    val newEntries = items.map { LogEntry(newId(), date, meal, it.foodId, it.qty, it.unit, time, false, it.choices, made) }
     d.copy(
         entries = d.entries + newEntries,
         portions = d.portions + items.associate { it.foodId to Portion(it.qty, it.unit, it.choices) },

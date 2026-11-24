@@ -43,38 +43,74 @@ import androidx.glance.text.FontWeight
 import androidx.glance.text.Text
 import androidx.glance.text.TextStyle
 import androidx.glance.unit.ColorProvider
+import androidx.glance.color.ColorProvider as dayNight
 import app.unavu.MainActivity
 import app.unavu.data.AppData
+import app.unavu.data.Settings
 import app.unavu.data.Store
+import app.unavu.data.ThemeMode
 import app.unavu.data.addWater
 import app.unavu.data.entriesOn
+import app.unavu.data.fmtInt
 import app.unavu.data.liquidsMl
 import app.unavu.data.targets
 import app.unavu.data.today
 import app.unavu.data.total
+import app.unavu.ui.theme.AmoledColors
+import app.unavu.ui.theme.AppColors
+import app.unavu.ui.theme.DEFAULT_ACCENT
+import app.unavu.ui.theme.DarkColors
+import app.unavu.ui.theme.LightColors
+import app.unavu.ui.theme.withAccent
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
-// Contrast on BG: INK about 14:1, INK2 about 6.4:1 (both above 4.5:1); text on CHIP is INK.
-private val BG = ColorProvider(Color(0xFF1F1D1A))
-private val CHIP = ColorProvider(Color(0xFF2B2824))
-private val INK = ColorProvider(Color(0xFFF2EEE6))
-private val INK2 = ColorProvider(Color(0xFFA39E93))
-private val LEAF = ColorProvider(Color(0xFF4FAE76))
+/**
+ * Widget colours come from the app's own palette, theme and accent, so the widget looks like the app:
+ * Light / Dark (or Pure black) follow Settings > Appearance, and "System" switches with the phone's day/night mode.
+ * Every pair passes WCAG AA: ink and ink2 are at least 4.5:1 on the card and chip colours, the progress fill is the
+ * accent ink (at least 4.5:1 on its track, see withAccent) and the primary pill is the accent with its on-accent text.
+ */
+private class Palette(
+    val card: ColorProvider, val chip: ColorProvider, val ink: ColorProvider, val ink2: ColorProvider,
+    val bar: ColorProvider, val over: ColorProvider, val acc: ColorProvider, val onAcc: ColorProvider,
+)
+
+private fun palette(s: Settings): Palette {
+    val accent = Color(s.accent ?: DEFAULT_ACCENT)
+    val day = LightColors.withAccent(accent)
+    val night = (if (s.amoled) AmoledColors else DarkColors).withAccent(accent)
+    fun pick(token: (AppColors) -> Color): ColorProvider = when (s.theme) {
+        ThemeMode.LIGHT -> ColorProvider(token(day))
+        ThemeMode.DARK -> ColorProvider(token(night))
+        ThemeMode.SYSTEM -> dayNight(day = token(day), night = token(night))
+    }
+    return Palette(
+        card = pick { it.sf }, chip = pick { it.sf2 }, ink = pick { it.ink }, ink2 = pick { it.ink2 },
+        bar = pick { it.accInk }, over = pick { it.chiInk }, acc = pick { it.acc }, onAcc = pick { it.onAcc },
+    )
+}
 
 private data class Snapshot(
     val hasProfile: Boolean, val left: Int, val target: Int, val eaten: Int, val protein: Int, val proteinT: Int,
-    val liquidsL: Double, val combos: List<Pair<String, String>>,
-)
+    val liquidsL: Double, val combos: List<Pair<String, String>>, val settings: Settings,
+) {
+    val over: Boolean get() = left < 0
+    val progress: Float get() = if (target > 0) (eaten / target.toFloat()).coerceIn(0f, 1f) else 0f
+}
 
 private fun snapshot(d: AppData): Snapshot {
     val t = d.targets()
     val n = d.entriesOn(today()).total()
     val (w, dr) = d.liquidsMl(today())
     val combos = d.combos.sortedByDescending { it.uses }.take(2).map { it.id to "${it.emoji} ${it.name}" }
-    return Snapshot(t != null, ((t?.kcal ?: 0) - n.kcal).roundToInt(), t?.kcal ?: 0, n.kcal.roundToInt(), n.protein.roundToInt(), t?.protein ?: 0, (w + dr) / 1000.0, combos)
+    return Snapshot(
+        t != null, ((t?.kcal ?: 0) - n.kcal).roundToInt(), t?.kcal ?: 0, n.kcal.roundToInt(), n.protein.roundToInt(), t?.protein ?: 0,
+        (w + dr) / 1000.0, combos, d.settings,
+    )
 }
 
 /** Never throws: an unreadable store shows the "no profile yet" state instead of a broken widget. */
@@ -97,59 +133,84 @@ class AddWaterAction : ActionCallback {
     }
 }
 
-/** At least 48dp tall so it is an easy tap target; described for TalkBack. */
+/** At least 48dp tall so it is an easy tap target; described for TalkBack. [primary] fills it with the accent. */
 @Composable
-private fun Pill(text: String, description: String, modifier: GlanceModifier) {
+private fun Pill(p: Palette, text: String, description: String, modifier: GlanceModifier, primary: Boolean = false) {
     Box(
-        modifier.height(48.dp).background(CHIP).cornerRadius(12.dp).padding(horizontal = 10.dp).semantics { contentDescription = description },
+        modifier.height(48.dp).background(if (primary) p.acc else p.chip).cornerRadius(12.dp).padding(horizontal = 10.dp)
+            .semantics { contentDescription = description },
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, style = TextStyle(color = INK, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
+        Text(text, style = TextStyle(color = if (primary) p.onAcc else p.ink, fontSize = 12.sp, fontWeight = FontWeight.Bold), maxLines = 1)
     }
 }
+
+/** Eaten against the target: accent fill, red once the day is over the target. */
+@Composable
+private fun Progress(p: Palette, s: Snapshot, heightDp: Int) {
+    LinearProgressIndicator(
+        progress = s.progress,
+        modifier = GlanceModifier.fillMaxWidth().height(heightDp.dp), color = if (s.over) p.over else p.bar, backgroundColor = p.chip,
+    )
+}
+
+private fun litres(s: Snapshot): String = "%.1f".format(s.liquidsL)
 
 private fun summary(context: Context, s: Snapshot): String =
     if (!s.hasProfile) context.getString(R.string.a_widget_no_profile_desc)
     else context.getString(
-        if (s.left >= 0) R.string.a_widget_summary else R.string.a_widget_summary_over,
-        kotlin.math.abs(s.left), s.protein, s.proteinT, "%.1f".format(s.liquidsL),
+        if (s.over) R.string.a_widget_summary_over else R.string.a_widget_summary,
+        abs(s.left), s.protein, s.proteinT, litres(s),
     )
 
 class BigWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val s = safeSnapshot(context)
+        val p = palette(s.settings)
         provideContent {
-            val root = GlanceModifier.fillMaxSize().background(BG).cornerRadius(24.dp).padding(14.dp)
+            val root = GlanceModifier.fillMaxSize().background(p.card).cornerRadius(24.dp).padding(14.dp)
                 .clickable(actionStartActivity<MainActivity>(actionParam(context, "today")))
             if (!s.hasProfile) {
                 Column(root.semantics { contentDescription = summary(context, s) }) {
-                    Text(context.getString(R.string.a_widget_no_profile), style = TextStyle(color = INK, fontSize = 14.sp, fontWeight = FontWeight.Bold))
+                    Text(context.getString(R.string.a_widget_no_profile), style = TextStyle(color = p.ink, fontSize = 14.sp, fontWeight = FontWeight.Bold))
                 }
             } else {
                 Column(root.semantics { contentDescription = summary(context, s) }) {
-                    Text(context.getString(if (s.left >= 0) R.string.a_widget_still_eat else R.string.a_widget_over_by), style = TextStyle(color = INK2, fontSize = 12.sp, fontWeight = FontWeight.Bold))
+                    Text(
+                        context.getString(if (s.over) R.string.a_widget_over_by else R.string.a_widget_still_eat),
+                        style = TextStyle(color = p.ink2, fontSize = 12.sp, fontWeight = FontWeight.Bold),
+                    )
                     Row(verticalAlignment = Alignment.Bottom) {
-                        Text("${kotlin.math.abs(s.left)}", style = TextStyle(color = INK, fontSize = 30.sp, fontWeight = FontWeight.Bold))
+                        Text(fmtInt(abs(s.left)), style = TextStyle(color = if (s.over) p.over else p.ink, fontSize = 30.sp, fontWeight = FontWeight.Bold))
                         Spacer(GlanceModifier.width(8.dp))
-                        Text("P ${s.protein}/${s.proteinT} · 💧 ${"%.1f".format(s.liquidsL)} L", style = TextStyle(color = INK2, fontSize = 12.sp))
+                        Text(
+                            context.getString(R.string.r7e_widget_detail, fmtInt(s.protein), fmtInt(s.proteinT), litres(s)),
+                            style = TextStyle(color = p.ink2, fontSize = 12.sp), maxLines = 1,
+                        )
                     }
                     Spacer(GlanceModifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = if (s.target > 0) (s.eaten / s.target.toFloat()).coerceIn(0f, 1f) else 0f,
-                        modifier = GlanceModifier.fillMaxWidth().height(8.dp), color = LEAF, backgroundColor = CHIP,
-                    )
+                    Progress(p, s, 8)
                     Spacer(GlanceModifier.height(8.dp))
                     Row(GlanceModifier.fillMaxWidth()) {
-                        Pill(context.getString(R.string.a_widget_log_food), context.getString(R.string.a_widget_log_food_desc), GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "add"))))
+                        Pill(
+                            p, context.getString(R.string.a_widget_log_food), context.getString(R.string.a_widget_log_food_desc),
+                            GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "add"))), primary = true,
+                        )
                         Spacer(GlanceModifier.width(6.dp))
-                        Pill(context.getString(R.string.a_widget_water), context.getString(R.string.a_widget_water_desc), GlanceModifier.defaultWeight().clickable(actionRunCallback<AddWaterAction>()))
+                        Pill(
+                            p, context.getString(R.string.a_widget_water), context.getString(R.string.a_widget_water_desc),
+                            GlanceModifier.defaultWeight().clickable(actionRunCallback<AddWaterAction>()),
+                        )
                     }
                     if (s.combos.isNotEmpty()) {
                         Spacer(GlanceModifier.height(6.dp))
                         Row(GlanceModifier.fillMaxWidth()) {
                             s.combos.forEachIndexed { i, (cid, label) ->
                                 if (i > 0) Spacer(GlanceModifier.width(6.dp))
-                                Pill(label, context.getString(R.string.a_widget_combo_desc, label), GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "combo:$cid"))))
+                                Pill(
+                                    p, label, context.getString(R.string.a_widget_combo_desc, label),
+                                    GlanceModifier.defaultWeight().clickable(actionStartActivity<MainActivity>(actionParam(context, "combo:$cid"))),
+                                )
                             }
                         }
                     }
@@ -162,21 +223,22 @@ class BigWidget : GlanceAppWidget() {
 class SmallWidget : GlanceAppWidget() {
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val s = safeSnapshot(context)
+        val p = palette(s.settings)
         provideContent {
-            val root = GlanceModifier.fillMaxSize().background(BG).cornerRadius(22.dp).padding(12.dp)
+            val root = GlanceModifier.fillMaxSize().background(p.card).cornerRadius(22.dp).padding(12.dp)
                 .clickable(actionStartActivity<MainActivity>(actionParam(context, if (s.hasProfile) "add" else "today")))
                 .semantics { contentDescription = summary(context, s) }
             if (!s.hasProfile) {
-                Column(root) { Text(context.getString(R.string.a_widget_no_profile), style = TextStyle(color = INK, fontSize = 12.sp, fontWeight = FontWeight.Bold)) }
+                Column(root) { Text(context.getString(R.string.a_widget_no_profile), style = TextStyle(color = p.ink, fontSize = 12.sp, fontWeight = FontWeight.Bold)) }
             } else {
                 Column(root) {
-                    Text(context.getString(if (s.left >= 0) R.string.a_widget_left else R.string.a_widget_over), style = TextStyle(color = INK2, fontSize = 12.sp, fontWeight = FontWeight.Bold))
-                    Text("${kotlin.math.abs(s.left)}", style = TextStyle(color = INK, fontSize = 26.sp, fontWeight = FontWeight.Bold))
-                    Spacer(GlanceModifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = if (s.target > 0) (s.eaten / s.target.toFloat()).coerceIn(0f, 1f) else 0f,
-                        modifier = GlanceModifier.fillMaxWidth().height(6.dp), color = LEAF, backgroundColor = CHIP,
+                    Text(
+                        context.getString(if (s.over) R.string.a_widget_over else R.string.a_widget_left),
+                        style = TextStyle(color = p.ink2, fontSize = 12.sp, fontWeight = FontWeight.Bold),
                     )
+                    Text(fmtInt(abs(s.left)), style = TextStyle(color = if (s.over) p.over else p.ink, fontSize = 26.sp, fontWeight = FontWeight.Bold))
+                    Spacer(GlanceModifier.height(6.dp))
+                    Progress(p, s, 6)
                 }
             }
         }

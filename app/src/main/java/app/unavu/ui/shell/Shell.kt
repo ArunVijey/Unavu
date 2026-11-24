@@ -35,20 +35,27 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.LocalSaveableStateRegistry
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import android.os.SystemClock
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import app.unavu.R
@@ -91,6 +98,43 @@ import app.unavu.ui.theme.U
 import app.unavu.ui.theme.motionTween
 
 private data class Dest(val page: Page?, val tab: Tab, val depth: Int)
+
+/** Key of a destination's saved screen state: one per root tab, one per pushed page (by stack depth + page). */
+private fun destKey(d: Dest): String = if (d.page == null) "tab:${d.tab.name}" else "page:${d.depth}:${d.page}"
+
+/** One destination's screen, opaque and fixed-size: nothing underneath shows through and nothing resizes mid-slide. */
+@Composable
+private fun DestContent(d: Dest, barHeight: Dp) {
+    Box(
+        Modifier.fillMaxSize().background(U.c.bg)
+            .then(if (d.page == null) Modifier.padding(bottom = barHeight) else Modifier.navigationBarsPadding()),
+    ) {
+        when (val p = d.page) {
+            null -> when (d.tab) {
+                Tab.TODAY -> TodayScreen()
+                Tab.INSIGHTS -> InsightsScreen()
+                Tab.MEALS -> MealsScreen()
+                Tab.SETTINGS -> SettingsScreen()
+            }
+            Page.Profile -> ProfileScreen()
+            Page.Goals -> GoalsScreen()
+            Page.Appearance -> AppearanceScreen()
+            Page.Portions -> PortionsScreen()
+            Page.Backup -> BackupScreen()
+            Page.Reminders -> RemindersScreen()
+            Page.About -> AboutScreen()
+            Page.History -> HistoryScreen()
+            Page.Liquids -> LiquidsScreen()
+            Page.Weight -> WeightScreen()
+            Page.SmartTarget -> SmartTargetScreen()
+            is Page.Plate -> PlateBuilderScreen(p)
+            is Page.FoodDetail -> FoodDetailScreen(p)
+            is Page.Recipe -> RecipeEditorScreen(p)
+            Page.MyFoods -> MyFoodsScreen()
+            is Page.MyFood -> MyFoodEditorScreen(p)
+        }
+    }
+}
 
 /** First-run flow (step + draft profile survive rotation and process death via the ViewModel). */
 @Composable
@@ -154,17 +198,43 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     ActionEffect(nav, action, consumed)
-    LaunchedEffect(tab, page) { feedback.host.currentSnackbarData?.dismiss() }
 
-    // predictive back on pushed pages: the page shrinks with the gesture, then eases back while the pop slides
+    // screen state (tab pages, Meals' selected tab, scroll positions, text fields) survives push/pop: one saved slot per
+    // destination. A popped page's slot is dropped; the root tabs' slots stay.
+    val holder = rememberSaveableStateHolder()
+    val pageKeys = nav.stack.mapIndexed { i, p -> destKey(Dest(p, tab, i + 1)) }
+    var knownPageKeys by remember { mutableStateOf(emptyList<String>()) }
+    LaunchedEffect(pageKeys) {
+        val live = pageKeys.toSet()
+        knownPageKeys.filter { it !in live }.forEach { holder.removeState(it) }
+        knownPageKeys = pageKeys
+    }
+
+    // a snackbar (e.g. "Added ... Undo") is dismissed when a page is pushed or popped, never by a plain tab switch; one
+    // requested in the same breath as the navigation (log, then pop) is the result of that action and stays
+    val stackSize = nav.stack.size
+    LaunchedEffect(stackSize) {
+        if (SystemClock.elapsedRealtime() - feedback.requestedAtMs > 500L) feedback.host.currentSnackbarData?.dismiss()
+    }
+
+    // predictive back on pushed pages: the destination underneath slides in from -30% while the page shrinks with the
+    // gesture (rounded corners); on cancel everything eases back
     val backProgress = remember { Animatable(0f) }
+    var preview by remember { mutableStateOf<Dest?>(null) }
     PredictiveBackHandler(enabled = page != null) { progress ->
+        val st = nav.stack
+        if (!reduced) preview = if (st.size >= 2) Dest(st[st.size - 2], tab, st.size - 1) else Dest(null, tab, 0)
         try {
             progress.collect { backProgress.snapTo(it.progress) }
+            // committed: the real pop transition takes over, so the stand-in preview goes first (never two copies)
+            preview = null
             nav.pop()
         } finally {
             // commit or cancel: ease the preview back in step with the slide (never a snap)
-            scope.launch { backProgress.animateTo(0f, motionTween(reduced, Motion.LONG, Motion.Emphasized)) }
+            scope.launch {
+                backProgress.animateTo(0f, motionTween(reduced, Motion.LONG, Motion.Emphasized))
+                preview = null
+            }
         }
     }
     // root tabs: plain back to Today, no preview to snap
@@ -181,15 +251,24 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
     )
 
     Box(Modifier.fillMaxSize().background(U.c.bg)) {
-        Box(
-            Modifier.fillMaxSize().statusBarsPadding().graphicsLayer {
-                val bp = backProgress.value
-                if (!reduced && bp > 0f) {
-                    val s = 1f - 0.1f * bp
-                    scaleX = s; scaleY = s; translationX = bp * 24.dp.toPx()
+        Box(Modifier.fillMaxSize().statusBarsPadding()) {
+            // the destination the back gesture is heading to, composed under the current page (no saved state of its own)
+            preview?.let { under ->
+                Box(Modifier.fillMaxSize().graphicsLayer { translationX = -size.width * 0.3f * (1f - backProgress.value) }) {
+                    CompositionLocalProvider(LocalSaveableStateRegistry provides null) { DestContent(under, barHeight) }
                 }
-            },
-        ) {
+            }
+            Box(
+                Modifier.fillMaxSize().graphicsLayer {
+                    val bp = backProgress.value
+                    if (!reduced && bp > 0f) {
+                        val s = 1f - 0.1f * bp
+                        scaleX = s; scaleY = s; translationX = bp * 24.dp.toPx()
+                        shape = RoundedCornerShape(28.dp * bp)
+                        clip = true
+                    }
+                },
+            ) {
             AnimatedContent(
                 targetState = Dest(page, tab, nav.stack.size),
                 transitionSpec = {
@@ -198,7 +277,7 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
                         // tab change: fade-through
                         targetState.depth == 0 && initialState.depth == 0 ->
                             (fadeIn(motionTween(false, Motion.FADE_THROUGH, delayMs = Motion.XSHORT)) +
-                                scaleIn(motionTween(false, Motion.FADE_THROUGH, delayMs = Motion.XSHORT), initialScale = 0.96f)) togetherWith
+                                scaleIn(motionTween(false, Motion.FADE_THROUGH, delayMs = Motion.XSHORT), initialScale = 0.98f)) togetherWith
                                 fadeOut(motionTween(false, Motion.XSHORT, Motion.Standard))
                         // push: the new page slides fully in from the right over the old one, which drifts 30% left; pop reverses
                         else -> {
@@ -219,36 +298,8 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
                 contentKey = { Triple(it.page, if (it.page == null) it.tab else null, it.depth) },
                 label = "pages",
             ) { d ->
-                // opaque, fixed-size page: nothing underneath shows through and nothing resizes mid-slide
-                Box(
-                    Modifier.fillMaxSize().background(U.c.bg)
-                        .then(if (d.page == null) Modifier.padding(bottom = barHeight) else Modifier.navigationBarsPadding()),
-                ) {
-                    when (val p = d.page) {
-                        null -> when (d.tab) {
-                            Tab.TODAY -> TodayScreen()
-                            Tab.INSIGHTS -> InsightsScreen()
-                            Tab.MEALS -> MealsScreen()
-                            Tab.SETTINGS -> SettingsScreen()
-                        }
-                        Page.Profile -> ProfileScreen()
-                        Page.Goals -> GoalsScreen()
-                        Page.Appearance -> AppearanceScreen()
-                        Page.Portions -> PortionsScreen()
-                        Page.Backup -> BackupScreen()
-                        Page.Reminders -> RemindersScreen()
-                        Page.About -> AboutScreen()
-                        Page.History -> HistoryScreen()
-                        Page.Liquids -> LiquidsScreen()
-                        Page.Weight -> WeightScreen()
-                        Page.SmartTarget -> SmartTargetScreen()
-                        is Page.Plate -> PlateBuilderScreen(p)
-                        is Page.FoodDetail -> FoodDetailScreen(p)
-                        is Page.Recipe -> RecipeEditorScreen(p)
-                        Page.MyFoods -> MyFoodsScreen()
-                        is Page.MyFood -> MyFoodEditorScreen(p)
-                    }
-                }
+                holder.SaveableStateProvider(destKey(d)) { DestContent(d, barHeight) }
+            }
             }
         }
         // bottom bar: overlaid and only translated, so the page never relayouts while it hides or shows
@@ -268,7 +319,17 @@ fun Main(nav: Nav, feedback: Feedback, action: String?, consumed: () -> Unit) {
         ) { data ->
             val c = U.c
             val shape = RoundedCornerShape(14.dp)
-            Snackbar(data, modifier = Modifier.border(1.dp, c.line, shape), shape = shape, containerColor = c.sf, contentColor = c.ink, actionColor = c.accInk)
+            // slot overload: the surface is drawn here (background, then the hairline on the pill itself), so there is no
+            // second frame 12 dp outside it as the data overload's inner padding produced
+            Snackbar(
+                modifier = Modifier.background(c.sf, shape).border(1.dp, c.line, shape),
+                action = data.visuals.actionLabel?.let { label ->
+                    { TextButton(onClick = { data.performAction() }) { Text(label, style = U.t.label, color = c.accInk) } }
+                },
+                shape = shape,
+                containerColor = Color.Transparent,
+                contentColor = c.ink,
+            ) { Text(data.visuals.message) }
         }
         // status-bar scrim: scrolled content never shows under the clock and battery
         Box(Modifier.align(Alignment.TopStart).fillMaxWidth().windowInsetsTopHeight(WindowInsets.statusBars).background(U.c.bg))

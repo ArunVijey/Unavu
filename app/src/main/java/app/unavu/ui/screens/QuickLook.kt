@@ -65,6 +65,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.DialogWindowProvider
 import app.unavu.ui.Divider
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 
 data class MenuAction(val label: String, val icon: String, val destructive: Boolean = false, val onClick: () -> Unit)
@@ -99,7 +100,7 @@ fun QuickLook(onDismiss: () -> Unit, actions: List<MenuAction> = emptyList(), co
             Box(Modifier.fillMaxSize().background(Color.Black.copy(alpha = scrim)))
             AnimatedVisibility(shown, enter = if (reduced) fadeIn(snap()) else scaleIn(motionSpring(0.8f, Spring.StiffnessMedium), initialScale = 0.86f, transformOrigin = TransformOrigin(0.5f, 0.3f)) + fadeIn(tween(Motion.SHORT))) {
                 Column(
-                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 40.dp).verticalScroll(rememberScrollState()),
+                    Modifier.fillMaxWidth().padding(horizontal = Space.gutter, vertical = 40.dp).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Column(

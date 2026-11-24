@@ -3,6 +3,15 @@ package app.unavu.ui.screens
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.AnimationVector1D
+import androidx.compose.runtime.key
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import app.unavu.data.fmtInt
+import app.unavu.data.targetKcalOn
+import app.unavu.ui.theme.Space
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntAsState
 import androidx.compose.animation.core.tween
@@ -148,9 +157,32 @@ fun statusOf(d: NutrientDef, have: Double, target: Double, pace: Double = 1.0): 
     if (have >= target * 0.9 * pace.coerceIn(0.0, 1.0)) Status.OK else Status.LOW
 }
 
-/** Whole numbers from 10 up (53.3 → 53), one decimal below 10 (2.4 mg iron). */
-fun fmtNum(v: Double): String = if (v >= 10 || v % 1.0 == 0.0) "%,d".format(v.roundToInt()) else "%.1f".format(v)
+/**
+ * Grams / milligrams: whole numbers from 10 up (53.3 → 53, grouped like [fmtInt]: "3,496"), one decimal below 10
+ * (2.4 mg iron). Rounds to one decimal first, so 9.96 shows "10", never "10.0".
+ */
+fun fmtNum(v: Double): String {
+    val r = (v * 10).roundToInt() / 10.0
+    return if (abs(r) >= 10 || r % 1.0 == 0.0) fmtInt(r) else String.format(Locale.ROOT, "%.1f", r)
+}
 
+/** "Today", "Yesterday" or "Mon, 21 Nov", from string resources. Prefer this over [dayTitle] in composables. */
+@Composable
+fun dayLabel(date: String): String = when (date) {
+    today() -> stringResource(R.string.d_today)
+    LocalDate.now().minusDays(1).format(DATE) -> stringResource(R.string.d_yesterday)
+    else -> dayTitle(date)
+}
+
+/** For mid-sentence use: "today", "yesterday" or "on Mon, 21 Nov". */
+@Composable
+fun dayWhen(date: String): String = when (date) {
+    today() -> stringResource(R.string.r7c_when_today)
+    LocalDate.now().minusDays(1).format(DATE) -> stringResource(R.string.r7c_when_yesterday)
+    else -> stringResource(R.string.r7c_when_on, dayTitle(date))
+}
+
+/** Non-composable day title (English). Composables should call [dayLabel], which reads the words from resources. */
 fun dayTitle(date: String): String {
     val d = LocalDate.parse(date)
     return when (date) {
@@ -177,7 +209,30 @@ private fun Modifier.staggerIn(index: Int, seen: MutableSet<Int>): Modifier = co
 }
 
 /** Compact litres: 0, 1.25, 2.5. */
-private fun fmtL(ml: Int): String = "%.2f".format(ml / 1000.0).trimEnd('0').trimEnd('.')
+private fun fmtL(ml: Int): String = String.format(Locale.ROOT, "%.2f", ml / 1000.0).trimEnd('0').trimEnd('.')
+
+/** Kilograms to one decimal: 72.4. */
+private fun fmtKg(kg: Double): String = String.format(Locale.ROOT, "%.1f", kg)
+
+/**
+ * A 0 → 0.6 → 0 flash when [count] grows on the same [date]: food just landed in this meal (quick add, plate,
+ * undo of a delete). The last count is saveable, so coming back from the plate builder still flashes the row.
+ */
+@Composable
+private fun rememberAddPulse(count: Int, date: String): Animatable<Float, AnimationVector1D> {
+    val reduced = LocalReducedMotion.current
+    val pulse = remember { Animatable(0f) }
+    var last by rememberSaveable(date) { mutableIntStateOf(count) }
+    LaunchedEffect(count, date) {
+        if (count > last && !reduced) {
+            pulse.snapTo(0f)
+            pulse.animateTo(0.6f, tween(Motion.MEDIUM / 2, easing = Motion.Standard))
+            pulse.animateTo(0f, tween(Motion.MEDIUM, easing = Motion.Standard))
+        }
+        last = count
+    }
+    return pulse
+}
 
 @Composable
 fun TodayScreen() {
@@ -186,7 +241,10 @@ fun TodayScreen() {
     val data = LocalData.current
     val store = nav.store
     val date = nav.date.value
-    val t = data.targets() ?: return
+    val base = data.targets() ?: return
+    // A past day is judged against the target that applied on it, not today's.
+    val dayKcal = data.targetKcalOn(date) ?: base.kcal
+    val t = remember(base, dayKcal) { if (dayKcal == base.kcal) base else base.copy(kcal = dayKcal) }
     val undoable = rememberUndo(store)
 
     val entries = remember(data, date) { data.entriesOn(date) }
@@ -233,7 +291,7 @@ fun TodayScreen() {
     fun sMealCleared(m: Meal) = sClearedFmt.format(m.label)
 
     Column(Modifier.fillMaxSize()) {
-        TopBar(dayTitle(date)) {
+        TopBar(dayLabel(date)) {
             if (date != today()) IconCircle("⟲", contentDescription = stringResource(R.string.d_back_to_today)) { nav.date.value = today() }
             GlyphCircle(LineGlyph.CALENDAR, stringResource(R.string.d_history)) { nav.push(Page.History) }
             Box {
@@ -261,8 +319,8 @@ fun TodayScreen() {
                     drawContent()
                     drawRect(Brush.verticalGradient(listOf(Color.Transparent, Color.Black), endY = 12.dp.toPx()), size = Size(size.width, 12.dp.toPx()), blendMode = BlendMode.DstIn)
                 },
-            contentPadding = PaddingValues(start = 18.dp, end = 18.dp, bottom = 110.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            contentPadding = PaddingValues(start = Space.gutter, end = Space.gutter, bottom = 110.dp),
+            verticalArrangement = Arrangement.spacedBy(Space.cardGap),
         ) {
             item(key = "week", contentType = "week") {
                 WeekStrip(data, date, Modifier.animateItem().staggerIn(0, seen)) { nav.date.value = it }
@@ -279,8 +337,8 @@ fun TodayScreen() {
                 item(key = "smart", contentType = "banner") {
                     val newKcal = (burn + (data.profile?.goalKcal ?: 0)).coerceAtLeast(1200)
                     AppCard(Modifier.animateItem().then(dayFade), color = c.leafS, border = null, onClick = { nav.push(Page.SmartTarget) }) {
-                        Text(stringResource(R.string.d_new_target, newKcal), style = U.t.body, fontWeight = FontWeight.Bold, color = c.leafInk)
-                        Text(stringResource(R.string.d_new_target_sub, t.kcal), style = U.t.caption, color = c.ink2)
+                        Text(stringResource(R.string.r7c_new_target, fmtInt(newKcal)), style = U.t.body, fontWeight = FontWeight.Bold, color = c.leafInk)
+                        Text(stringResource(R.string.r7c_new_target_sub, fmtInt(base.kcal)), style = U.t.caption, color = c.ink2)
                     }
                 }
             }
@@ -304,7 +362,7 @@ fun TodayScreen() {
             item(key = "liquids", contentType = "liquids") {
                 val (water, drinks) = data.liquidsMl(date)
                 val goal = data.settings.waterGoalMl
-                val liqSub = stringResource(R.string.d_liquids_sub, fmtL(water), fmtL(goal), drinks)
+                val liqSub = stringResource(R.string.r7c_liquids_sub, fmtL(water), fmtL(goal), fmtInt(drinks))
                 AppCard(Modifier.animateItem().staggerIn(3, seen).then(dayFade)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Column(
@@ -325,17 +383,34 @@ fun TodayScreen() {
 
             // ---------- Meals ----------
             item(key = "meals", contentType = "meals") {
-                AppCard(Modifier.animateItem().staggerIn(4, seen).then(dayFade), padding = PaddingValues(horizontal = 18.dp, vertical = 0.dp)) {
-                    Meal.entries.forEachIndexed { i, m ->
+                val cardPad = 18.dp
+                AppCard(Modifier.animateItem().staggerIn(4, seen).then(dayFade), padding = PaddingValues(horizontal = cardPad, vertical = 0.dp)) {
+                    Meal.entries.forEachIndexed { i, m -> key(m) {
                         if (i > 0) Divider()
                         val list = byMeal.getValue(m)
                         val kcal = list.total().kcal.roundToInt()
                         val empty = list.isEmpty()
+                        val cheatMeal = list.any { it.cheat }
+                        val sub = if (empty) stringResource(R.string.d_meal_not_logged) else list.joinToString(" · ") { e -> mealItemText(e) }
+                        // TalkBack: "Lunch, 751 kilocalories: 2 idli · sambar" (the number alone never had a unit).
+                        val rowDesc = if (empty) stringResource(R.string.r7c_meal_row_empty_desc, m.label)
+                        else stringResource(R.string.r7c_meal_row_desc, m.label, fmtInt(kcal), sub) + if (cheatMeal) ", " + stringResource(R.string.d_cheat_meal) else ""
+                        val clickLabel = stringResource(if (empty) R.string.r7c_meal_row_add else R.string.r7c_meal_row_open, m.label)
+                        val pulse = rememberAddPulse(list.size, date)
+                        val pulseColor = c.accS
                         Row(
                             // One fixed height for logged and empty rows, so nothing jumps when a meal is logged.
                             Modifier.fillMaxWidth().height(MEAL_ROW_HEIGHT)
-                                .semantics(mergeDescendants = true) {}
-                                .clickable(role = Role.Button) {
+                                // A one-off soft flash on the row that just received food (quick add, plate, undo).
+                                .drawBehind {
+                                    val a = pulse.value
+                                    if (a > 0f) {
+                                        val pad = cardPad.toPx()
+                                        drawRect(pulseColor.copy(alpha = a), topLeft = Offset(-pad, 0f), size = Size(size.width + 2 * pad, size.height))
+                                    }
+                                }
+                                .semantics(mergeDescendants = true) { contentDescription = rowDesc }
+                                .clickable(role = Role.Button, onClickLabel = clickLabel) {
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                     if (empty) nav.push(Page.Plate(m, date)) else mealLook = m.name
                                 },
@@ -343,20 +418,25 @@ fun TodayScreen() {
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                         ) {
                             Box(Modifier.size(9.dp).clip(CircleShape).background(if (empty) colors[i].copy(alpha = 0.45f) else colors[i]).border(1.dp, c.ink.copy(alpha = 0.25f), CircleShape))
-                            Column(Modifier.weight(1f)) {
+                            Column(Modifier.weight(1f).clearAndSetSemantics {}) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                                     Text(m.label, style = U.t.titleS, color = if (empty) c.ink2 else c.ink)
-                                    if (list.any { it.cheat }) StatusBadge(stringResource(R.string.d_cheat_meal), Status.LOW)
+                                    if (cheatMeal) StatusBadge(stringResource(R.string.d_cheat_meal), Status.LOW)
                                 }
-                                val sub = if (empty) stringResource(R.string.d_meal_not_logged) else list.joinToString(" · ") { e -> mealItemText(e) }
                                 AnimatedContent(sub, transitionSpec = { fadeIn(fadeSpec) togetherWith fadeOut(fadeSpec) }, label = "mealSub") { txt ->
                                     Text(txt, style = U.t.bodyS, color = c.ink2, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp))
                                 }
                             }
                             if (empty) AddButton(null, null)
-                            else Text("$kcal", style = U.t.titleS, fontWeight = FontWeight.ExtraBold, color = c.ink)
+                            else {
+                                val shownKcal by animateIntAsState(kcal, motionTween(Motion.LONG), label = "mealKcal")
+                                Column(Modifier.clearAndSetSemantics {}, horizontalAlignment = Alignment.End) {
+                                    Text(fmtInt(shownKcal), style = U.t.titleS, fontWeight = FontWeight.ExtraBold, color = c.ink)
+                                    Text(stringResource(R.string.d_kcal_unit), style = U.t.caption, color = c.ink2)
+                                }
+                            }
                         }
-                    }
+                    } }
                 }
             }
 
@@ -370,10 +450,18 @@ fun TodayScreen() {
                             Modifier.weight(1f).heightIn(min = 48.dp).pressScale().semantics(mergeDescendants = true) {}.clickable(role = Role.Button) { nav.push(Page.Weight) },
                             verticalArrangement = Arrangement.Center,
                         ) {
-                            Text(if (lastW == null) stringResource(R.string.d_weight_none) else stringResource(R.string.d_weight_title, "%.1f kg".format(lastW.kg)), style = U.t.body, fontWeight = FontWeight.Bold)
+                            // The headline is the trend, as on Weight and Insights; the last weigh-in is the detail.
+                            val headline = trend ?: lastW?.kg
                             Text(
-                                if (lastW == null || trend == null) stringResource(R.string.d_weight_first)
-                                else stringResource(R.string.d_weight_sub, "%.1f".format(trend), dayTitle(lastW.date).lowercase()),
+                                if (headline == null) stringResource(R.string.d_weight_none) else stringResource(R.string.r7c_weight_title, fmtKg(headline)),
+                                style = U.t.body, fontWeight = FontWeight.Bold,
+                            )
+                            Text(
+                                when {
+                                    lastW == null -> stringResource(R.string.d_weight_first)
+                                    data.weights.size < 2 -> stringResource(R.string.r7c_weight_sub_first, dayWhen(lastW.date))
+                                    else -> stringResource(R.string.r7c_weight_sub, fmtKg(lastW.kg), dayWhen(lastW.date))
+                                },
                                 style = U.t.caption, color = c.ink2,
                             )
                         }

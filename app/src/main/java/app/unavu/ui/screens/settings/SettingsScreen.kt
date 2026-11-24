@@ -1,6 +1,9 @@
 package app.unavu.ui.screens
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import app.unavu.data.fmtInt
+import app.unavu.ui.theme.Space
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -50,7 +53,7 @@ fun SettingsScreen() {
     val t = data.targets() ?: return
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_settings_title))
-        Column(Modifier.padding(horizontal = 16.dp)) {
+        Column(Modifier.padding(horizontal = Space.gutter)) {
             AppCard(onClick = { nav.push(Page.Profile) }) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Box(Modifier.size(46.dp).clip(CircleShape).background(c.turS).clearAndSetSemantics { }, contentAlignment = Alignment.Center) { EmojiText("🙂", 22) }
@@ -70,37 +73,53 @@ fun SettingsScreen() {
             }
             SectionLabel(stringResource(R.string.i_sec_plan))
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
-                SettingsRow(stringResource(R.string.i_goal_targets), stringResource(R.string.i_goal_targets_sub, t.kcal), "🎯") { nav.push(Page.Goals) }
+                SettingsRow(stringResource(R.string.i_goal_targets), stringResource(R.string.i_goal_targets_sub, fmtInt(t.kcal)), "🎯") { nav.push(Page.Goals) }
                 Divider()
                 SettingsRow(stringResource(R.string.i_my_portions), pluralStringResource(R.plurals.i_portions_remembered, data.portions.size, data.portions.size), "🥄") { nav.push(Page.Portions) }
                 Divider()
-                val custom = data.customFoods.count { it.facts != null }
+                val foodsN = data.customFoods.count { it.facts != null }
+                val recipesN = data.customFoods.size - foodsN
+                // Same list as Meals › My foods: foods by calories and recipes from ingredients.
                 SettingsRow(
                     stringResource(R.string.i_my_foods),
-                    if (custom == 0) stringResource(R.string.i_my_foods_none) else stringResource(R.string.i_my_foods_n, custom),
+                    if (foodsN + recipesN == 0) stringResource(R.string.i_my_foods_none)
+                    else stringResource(
+                        R.string.r7d_my_foods_sub,
+                        pluralStringResource(R.plurals.r7d_n_foods, foodsN, foodsN),
+                        pluralStringResource(R.plurals.r7d_n_recipes, recipesN, recipesN),
+                    ),
                     "➕",
                 ) { nav.push(Page.MyFoods) }
                 Divider()
-                val smart = stringResource(
-                    when (data.smart.mode) { SmartMode.AUTO -> R.string.i_smart_auto; SmartMode.ASK -> R.string.i_smart_ask; SmartMode.MANUAL -> R.string.i_smart_manual },
-                ) + if (data.smart.pendingBurn != null) stringResource(R.string.i_smart_pending) else ""
+                val smart = listOfNotNull(
+                    stringResource(
+                        when (data.smart.mode) { SmartMode.AUTO -> R.string.i_smart_auto; SmartMode.ASK -> R.string.i_smart_ask; SmartMode.MANUAL -> R.string.i_smart_manual },
+                    ),
+                    if (data.smart.pendingBurn != null) stringResource(R.string.i_smart_pending) else null,
+                ).joinToString(" · ")
                 SettingsRow(stringResource(R.string.i_smart_target), smart, "🧠") { nav.push(Page.SmartTarget) }
             }
             SectionLabel(stringResource(R.string.i_sec_app))
             AppCard(padding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
                 val theme = stringResource(when (data.settings.theme) { ThemeMode.SYSTEM -> R.string.i_theme_system; ThemeMode.LIGHT -> R.string.i_theme_light; ThemeMode.DARK -> R.string.i_theme_dark })
-                SettingsRow(
-                    stringResource(R.string.i_appearance),
-                    "$theme${if (data.settings.amoled) stringResource(R.string.i_amoled_short) else ""} · ${data.settings.font.label}",
-                    "🎨",
-                ) { nav.push(Page.Appearance) }
+                // AMOLED only does something while the app is dark, so only mention it then.
+                val systemDark = isSystemInDarkTheme()
+                val effectivelyDark = data.settings.theme == ThemeMode.DARK || (data.settings.theme == ThemeMode.SYSTEM && systemDark)
+                val appearance = listOfNotNull(
+                    theme,
+                    if (data.settings.amoled && effectivelyDark) stringResource(R.string.i_amoled_short) else null,
+                    if (data.settings.sketch) stringResource(R.string.i_style_sketch) else data.settings.font.label,
+                ).joinToString(" · ")
+                SettingsRow(stringResource(R.string.i_appearance), appearance, "🎨") { nav.push(Page.Appearance) }
                 Divider()
                 val b = data.backup
                 val sub = when {
                     b.folderUri == null -> stringResource(R.string.i_backup_none)
                     b.lastAt == null -> stringResource(R.string.i_backup_not_run)
-                    else -> stringResource(R.string.i_backup_last, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(b.lastAt))) +
-                        if (!b.lastOk) stringResource(R.string.i_backup_failed_suffix) else ""
+                    else -> listOfNotNull(
+                        stringResource(R.string.i_backup_last, DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(b.lastAt))),
+                        if (!b.lastOk) stringResource(R.string.i_backup_failed_suffix) else null,
+                    ).joinToString(" · ")
                 }
                 SettingsRow(stringResource(R.string.i_backup), sub, "📁") { nav.push(Page.Backup) }
                 Divider()

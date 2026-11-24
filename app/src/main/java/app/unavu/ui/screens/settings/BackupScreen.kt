@@ -46,6 +46,7 @@ import app.unavu.ui.TimeDialog
 import app.unavu.ui.TopBar
 import app.unavu.ui.fmtTime
 import app.unavu.ui.nav
+import app.unavu.ui.theme.Space
 import app.unavu.ui.theme.U
 import app.unavu.work.Scheduler
 import java.text.DateFormat
@@ -103,7 +104,7 @@ fun BackupScreen() {
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         TopBar(stringResource(R.string.i_backup), onBack = { nav.pop() })
-        Column(Modifier.padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(horizontal = Space.gutter), verticalArrangement = Arrangement.spacedBy(Space.cardGap)) {
             val ok = b.lastOk && b.lastAt != null
             AppCard(color = if (b.lastAt == null) c.sf2 else if (ok) c.leafS else c.chiS, border = null, onClick = if (b.folderUri == null) ({ pickFolder.launch(null) }) else null) {
                 Text(

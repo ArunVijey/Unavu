@@ -12,12 +12,7 @@ enum class Meal(val label: String, val tamil: String, val emoji: String) {
 
     companion object {
         /** Only used for suggestions (e.g. "next meal"), never to file a log automatically. */
-        fun forHour(hour: Int): Meal = when {
-            hour < 11 -> BREAKFAST
-            hour < 16 -> LUNCH
-            hour < 19 -> SNACKS
-            else -> DINNER
-        }
+        fun forHour(hour: Int): Meal = mealForMinutes(hour * 60)
     }
 }
 
@@ -75,6 +70,8 @@ data class LogEntry(
     val cheat: Boolean = false,
     /** Picked options per choice group (vegetables, dal, sugar, milk, oil…). */
     val choices: Map<String, List<String>> = emptyMap(),
+    /** ISO date this entry was created (null in older data). Differs from [date] for back-filled days. */
+    val loggedOn: String? = null,
 )
 
 /** The last portion + choices used for a food; pre-filled the next time it is logged. */
@@ -193,7 +190,16 @@ data class AppData(
     val reminders: List<Reminder> = emptyList(),
     /** Days with notes ("Cousin's wedding"). */
     val dayNotes: Map<String, String> = emptyMap(),
+    /**
+     * Daily kcal target history: ISO date the target took effect -> kcal. Written by [Store.update] whenever the
+     * target changes, so past days keep the target they were judged against. Empty in older data (and until the
+     * target first changes): every day then uses the current target. Read it through [targetKcalOn].
+     */
+    val targetHistory: Map<String, Int> = emptyMap(),
 ) {
     /** Per-instance cached index (not serialized). */
     internal val entriesByDate: Map<String, List<LogEntry>> by lazy(LazyThreadSafetyMode.PUBLICATION) { entries.groupBy { it.date } }
+
+    /** [targetHistory] dates, oldest first (cached, not serialized). */
+    internal val targetDays: List<String> by lazy(LazyThreadSafetyMode.PUBLICATION) { targetHistory.keys.sorted() }
 }

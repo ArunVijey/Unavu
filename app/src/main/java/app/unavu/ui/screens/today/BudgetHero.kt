@@ -9,7 +9,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.platform.LocalDensity
+import app.unavu.data.fmtInt
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -58,7 +62,11 @@ import app.unavu.ui.theme.roughRect
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
+/** Above this font scale, secondary lines wrap under their value instead of sharing a row with it. */
+internal const val LARGE_FONT_SCALE = 1.15f
+
 /** Today's hero: kcal left, the per-meal budget bar and the nutrient tiles. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun BudgetHero(
     modifier: Modifier, kcal: Int, eaten: Int, left: Int, byMeal: Map<Meal, List<LogEntry>>, colors: List<Color>,
@@ -67,15 +75,22 @@ fun BudgetHero(
     val c = U.c
     var armed by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { armed = true }
+    // Every number here counts to its new value (Motion.LONG) when food is added, removed or the day changes.
     val shownLeft by animateIntAsState(if (armed) abs(left) else 0, motionTween(Motion.LONG), label = "left")
-    val grow by animateFloatAsState(if (armed) 1f else 0f, motionTween(Motion.LONG), label = "grow")
-    val parts = Meal.entries.map { m -> (byMeal.getValue(m).total().kcal / kcal).toFloat() * grow }
-    val scale = if (parts.sum() > 1f) 1f / parts.sum() else 1f
+    val shownEaten by animateIntAsState(if (armed) eaten else 0, motionTween(Motion.LONG), label = "eaten")
     val mealKcal = Meal.entries.map { m -> byMeal.getValue(m).total().kcal.roundToInt() }
-    val breakdown = Meal.entries.mapIndexed { i, m -> stringResource(R.string.d_meal_kcal, m.label, mealKcal[i]) }.joinToString(" ")
-    val summary = if (left >= 0) stringResource(R.string.d_budget_summary_left, left, kcal, eaten, breakdown)
-    else stringResource(R.string.d_budget_summary_over, -left, kcal, eaten, breakdown)
+    // Each meal's segment eases to its new width instead of jumping.
+    val parts = Meal.entries.map { m ->
+        val target = if (kcal > 0) mealKcal[m.ordinal] / kcal.toFloat() else 0f
+        animateFloatAsState(if (armed) target else 0f, motionTween(Motion.LONG), label = "part-${m.name}").value
+    }
+    val scale = if (parts.sum() > 1f) 1f / parts.sum() else 1f
+    val breakdown = Meal.entries.mapIndexed { i, m -> stringResource(R.string.r7c_meal_kcal, m.label, fmtInt(mealKcal[i])) }.joinToString(" ")
+    val summary = if (left >= 0) stringResource(R.string.r7c_budget_summary_left, fmtInt(left), fmtInt(kcal), fmtInt(eaten), breakdown)
+    else stringResource(R.string.r7c_budget_summary_over, fmtInt(-left), fmtInt(kcal), fmtInt(eaten), breakdown)
+    val eatenLine = stringResource(R.string.r7c_eaten_of_line, fmtInt(shownEaten), fmtInt(kcal))
     val openDesc = stringResource(R.string.d_budget_open)
+    val stackEaten = LocalDensity.current.fontScale > LARGE_FONT_SCALE
 
     AppCard(modifier) {
         // "1730 kcal" and "343 eaten of 2073" share one baseline.
@@ -83,12 +98,12 @@ fun BudgetHero(
             Text(stringResource(if (left >= 0) R.string.d_can_still_eat else R.string.d_over_target_by), style = U.t.caption, fontWeight = FontWeight.Bold, color = c.ink2, letterSpacing = 0.8.sp)
             Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                 val big = U.t.display
-                Text("$shownLeft", style = big.copy(fontSize = big.fontSize * 1.5f, lineHeight = big.lineHeight * 1.5f), color = if (left >= 0) c.ink else c.chiInk, modifier = Modifier.alignByBaseline())
+                Text(fmtInt(shownLeft), style = big.copy(fontSize = big.fontSize * 1.5f, lineHeight = big.lineHeight * 1.5f), color = if (left >= 0) c.ink else c.chiInk, modifier = Modifier.alignByBaseline())
                 Spacer(Modifier.width(4.dp))
                 Text(stringResource(R.string.d_kcal_unit), style = U.t.bodyS, fontWeight = FontWeight.SemiBold, color = c.ink2, modifier = Modifier.alignByBaseline())
                 Spacer(Modifier.weight(1f))
                 if (U.sketch) {
-                    val frac = (eaten / kcal.toFloat()).coerceIn(0f, 1f)
+                    val frac = (shownEaten / kcal.toFloat()).coerceIn(0f, 1f)
                     val track = c.ink2.copy(alpha = 0.25f); val ringCol = if (left >= 0) c.acc else c.chi
                     Box(Modifier.size(92.dp), contentAlignment = Alignment.Center) {
                         Canvas(Modifier.size(92.dp)) {
@@ -96,13 +111,14 @@ fun BudgetHero(
                             roughArc(track, center, r, 0f, 360f, 3, 7.dp.toPx())
                             roughArc(ringCol, center, r, -90f, 360f * frac, 7, 7.dp.toPx())
                         }
-                        Text("${(eaten * 100f / kcal).roundToInt()}%", style = U.t.title)
+                        Text("${(shownEaten * 100f / kcal).roundToInt()}%", style = U.t.title)
                     }
-                } else {
-                    Text(stringResource(R.string.d_eaten_of_line, eaten, kcal), style = U.t.label, color = c.ink2, textAlign = TextAlign.End, modifier = Modifier.alignByBaseline())
+                } else if (!stackEaten) {
+                    Text(eatenLine, style = U.t.label, color = c.ink2, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.alignByBaseline().padding(start = 8.dp))
                 }
             }
-            if (U.sketch) Text(stringResource(R.string.d_eaten_of_line, eaten, kcal), style = U.t.label, color = c.ink2, modifier = Modifier.padding(top = 2.dp))
+            // Sketch (ring on the right) and large font scales: the line moves under the number instead of truncating.
+            if (U.sketch || stackEaten) Text(eatenLine, style = U.t.label, color = c.ink2, modifier = Modifier.padding(top = 2.dp))
         }
         Spacer(Modifier.height(8.dp))
         Box(
@@ -129,7 +145,10 @@ fun BudgetHero(
             }
         }
         AnimatedVisibility(eaten > 0) {
-            Row(Modifier.clearAndSetSemantics {}.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            FlowRow(
+                Modifier.clearAndSetSemantics {}.padding(top = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 Meal.entries.forEachIndexed { i, m -> LegendDot(colors[i], m.label) }
             }
         }
